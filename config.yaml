@@ -1,0 +1,379 @@
+BesselBasis_trainable: true
+PolynomialCutoff_p: 6
+
+allow_tf32: false
+append: true
+avg_num_neighbors: 10.5
+batch_size: 5
+#chemical_embedding_irreps_out: 64x0e
+#chemical_embedding_irreps_out: 32x0e
+chemical_symbols:
+- H
+- He
+- Li
+- Be
+- B
+- C
+- N
+- O
+- F
+- Ne
+- Na
+- Mg
+- Al
+- Si
+- P
+- S
+- Cl
+- Ar
+- K
+- Ca
+- Sc
+- Ti
+- V
+- Cr
+- Mn
+- Fe
+- Co
+- Ni
+- Cu
+- Zn
+- Ga
+- Ge
+- As
+- Se
+- Br
+- Kr
+- Rb
+- Sr
+- Y
+- Zr
+- Nb
+- Mo
+- Tc
+- Ru
+- Rh
+- Pd
+- Ag
+- Cd
+- In
+- Sn
+- Sb
+- Te
+- I
+- Xe
+- Cs
+- Ba
+- La
+- Hf
+- Ta
+- W
+- Re
+- Os
+- Ir
+- Pt
+- Au
+- Hg
+- Tl
+- Pb
+- Bi
+- Po
+- At
+- Rn
+- Fr
+- Ra
+- Ac
+- Rf
+- Db
+- Sg
+- Bh
+- Hs
+- Ce
+- Pr
+- Nd
+- Pm
+- Sm
+- Eu
+- Gd
+- Tb
+- Dy
+- Ho
+- Er
+- Tm
+- Yb
+- Lu
+- Th
+- Pa
+- U
+- Np
+- Pu
+- Am
+- Cm
+- Bk
+- Cf
+- Es
+- Fm
+- Md
+
+code_commits: {}
+#conv_to_output_hidden_irreps_out: 32x0e
+default_dtype: float32
+device: cuda
+e3nn_version: 0.5.0
+early_stopping: null
+early_stopping_cumulative_delta: false
+early_stopping_delta:
+  validation_loss: 0.0
+early_stopping_kwargs: null
+early_stopping_lower_bounds:
+  LR: 1.0e-05
+early_stopping_patiences:
+  validation_loss: 50
+early_stopping_upper_bounds:
+  cumulative_wall: 1.0e+100
+ema_decay: 0.99
+ema_use_num_updates: true
+end_of_batch_callbacks: []
+end_of_epoch_callbacks: []
+end_of_train_callbacks: []
+equivariance_test: false
+exclude_keys: []
+#feature_irreps_hidden: 64x0e+64x1e+64x2e+64x0o+64x1o+64x2o
+#feature_irreps_hidden: 32x0e+32x1e+32x0o+32x1o
+final_callbacks: []
+global_rescale_scale: false
+global_rescale_scale_trainable: false
+global_rescale_shift: null
+global_rescale_shift_trainable: false
+grad_anomaly_mode: false
+init_callbacks: []
+invariant_layers: 2
+#invariant_neurons: 64
+#irreps_edge_sh: 1x0e+1x1o+1x2e
+invariant_neurons: 64
+#irreps_edge_sh: 1x0e+1x1o
+key_mapping:
+  coords: pos
+  energies: total_energy
+  forces: forces
+  nuclear_charges: atomic_numbers
+l_max: 2
+#l_max: 1
+learning_rate: 0.01
+log_batch_freq: 1
+log_epoch_freq: 1
+loss_coeffs:
+  forces: 1
+  total_energy:
+  - 1
+  - PerAtomMSELoss
+lr_scheduler_factor: 0.8
+lr_scheduler_kwargs:
+  cooldown: 0
+  eps: 1.0e-08
+  factor: 0.8
+  min_lr: 0
+  mode: min
+  patience: 100
+  threshold: 0.0001
+  threshold_mode: rel
+  verbose: false
+lr_scheduler_name: ReduceLROnPlateau
+lr_scheduler_patience: 100
+max_epochs: 100000
+max_gradient_norm: .inf
+metrics_components:
+- - forces
+  - mae
+- - forces
+  - rmse
+- - forces
+  - mae
+  - PerSpecies: false
+    report_per_component: false
+- - forces
+  - rmse
+  - PerSpecies: false
+    report_per_component: false
+- - total_energy
+  - mae
+- - total_energy
+  - mae
+  - PerAtom: true
+metrics_key: validation_loss
+model_builders:
+- SimpleIrrepsConfig
+- EnergyModel
+- ForceOutput
+
+model_debug_mode: false
+n_train: 1000
+n_val: 50
+nequip_version: 0.5.5
+nonlinearity_gates:
+  e: silu
+  o: tanh
+nonlinearity_scalars:
+  e: silu
+  o: tanh
+nonlinearity_type: gate
+npz_fixed_field_keys:
+- atomic_numbers
+num_basis: 8
+num_features: 64
+num_layers: 5
+#num_types: 3
+optimizer_amsgrad: true
+optimizer_betas: &id001 !!python/tuple
+- 0.9
+- 0.999
+optimizer_eps: 1.0e-08
+optimizer_kwargs:
+  amsgrad: true
+  betas: *id001
+  eps: 1.0e-08
+  maximize: false
+  weight_decay: 0
+optimizer_name: Adam
+optimizer_weight_decay: 0
+#parity: false
+parity: true
+per_species_rescale_scales: false
+per_species_rescale_scales_trainable: false
+per_species_rescale_shifts: false
+per_species_rescale_shifts_trainable: false
+r_max: 4.0
+report_init_validation: true
+resnet: false
+root: results/toluene
+run_id: 33gfhd9k
+run_name: example-run-toluene
+save_checkpoint_freq: -1
+save_ema_checkpoint_freq: -1
+seed: 123
+shuffle: true
+torch_version: !!python/object/new:torch.torch_version.TorchVersion
+- 1.11.0
+
+
+train_on_keys:
+- forces
+- total_energy
+train_val_split: random
+type_names:
+- H
+- He
+- Li
+- Be
+- B
+- C
+- N
+- O
+- F
+- Ne
+- Na
+- Mg
+- Al
+- Si
+- P
+- S
+- Cl
+- Ar
+- K
+- Ca
+- Sc
+- Ti
+- V
+- Cr
+- Mn
+- Fe
+- Co
+- Ni
+- Cu
+- Zn
+- Ga
+- Ge
+- As
+- Se
+- Br
+- Kr
+- Rb
+- Sr
+- Y
+- Zr
+- Nb
+- Mo
+- Tc
+- Ru
+- Rh
+- Pd
+- Ag
+- Cd
+- In
+- Sn
+- Sb
+- Te
+- I
+- Xe
+- Cs
+- Ba
+- La
+- Hf
+- Ta
+- W
+- Re
+- Os
+- Ir
+- Pt
+- Au
+- Hg
+- Tl
+- Pb
+- Bi
+- Po
+- At
+- Rn
+- Fr
+- Ra
+- Ac
+- Rf
+- Db
+- Sg
+- Bh
+- Hs
+- Ce
+- Pr
+- Nd
+- Pm
+- Sm
+- Eu
+- Gd
+- Tb
+- Dy
+- Ho
+- Er
+- Tm
+- Yb
+- Lu
+- Th
+- Pa
+- U
+- Np
+- Pu
+- Am
+- Cm
+- Bk
+- Cf
+- Es
+- Fm
+- Md
+use_ema: true
+use_sc: true
+
+
+validation_batch_size: 10
+var_num_neighbors: 3.1417057514190674
+verbose: info
+wandb: true
+wandb_project: toluene-example
+wandb_watch: false

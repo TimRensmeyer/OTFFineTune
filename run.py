@@ -4,6 +4,10 @@ for fn in os.listdir():
     if fn[-4:]=='.out':
         os.remove(fn)
 print('test2')
+
+import yaml
+
+
 from Procs import SlurmStartup
 Handler=SlurmStartup(restart=False)
 

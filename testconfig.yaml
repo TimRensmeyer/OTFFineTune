@@ -1,3 +1,5 @@
+CodePath: './'
+TargetPath: './tests/'
 DFTResourceManager: SLURM
 NNPResourceManager: SLURM
 FFType: Ensemble

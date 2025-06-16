@@ -7,12 +7,22 @@ from nequip.data.AtomicData import AtomicData
 from nequip.data import AtomicDataDict
 from nequip.model._build import model_from_config
 from nequip.utils.torch_geometric import Batch
-from LogPriors import GaussianMeanField
-from MCMC import CyclicOptimizer
-
 import copy
+import yaml
+import sys
+import shutup
+shutup.please()
+with open('testconfig.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+CodePath=config['CodePath']
+sys.path.insert(0, CodePath)
+
+from OTFFineTune.MCMC import GaussianMeanField,CyclicOptimizer
+
+
 conf=Config()
-conf=conf.from_file('config.yaml')
+conf=conf.from_file(CodePath+'OTFFineTune/config.yaml')
 model=model_from_config(conf,initialize=True).model
 base=nn.Sequential(*[model.func[i] for i in range(len(model.func)-4)])
 
@@ -140,7 +150,7 @@ class model(StochasticModel):
 def NequIP_Loader():
 
     module=Network(dict_size=100)
-    SpiceDict=torch.load('Dicts/SpiceDict',map_location=torch.device('cpu'))
+    SpiceDict=torch.load(CodePath +'OTFFineTune/Dicts/SpiceDict',map_location=torch.device('cpu'))
     keys=SpiceDict.keys()
     dict={}
     for k in keys:
@@ -155,8 +165,8 @@ def NequIP_Loader():
 
     return copy.deepcopy(m)
 
-from NNP import NNP
-from NequIPDataLoader import weighted_dataloader
+from OTFFineTune.NNP import NNP
+from OTFFineTune.NequIPDataLoader import weighted_dataloader
 class NequIP_Wrapper(NNP):
     def __init__(self,args):
         super(NequIP_Wrapper,self).__init__()
@@ -176,8 +186,9 @@ class NequIP_Wrapper(NNP):
             i+=1
 
         self.log_prior=GaussianMeanField(mean,std)
+        dataloader=weighted_dataloader(bs=5,device=torch.device("cpu"))
         self.optimizer=CyclicOptimizer(self.model,self.log_prior,
-                                       dataloader=weighted_dataloader(bs=3,cycle_length=20), max_lr=0.0001)
+                                       dataloader=dataloader, max_lr=0.0001,cycle_length=200)
 
     def predict(self,ase_atoms):
         R=ase_atoms.get_positions()

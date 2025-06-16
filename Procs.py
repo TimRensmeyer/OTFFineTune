@@ -15,6 +15,20 @@ def ProcComSetUp():
     fp.write('ready')
     fp.close()
 
+def SetUp():
+    dircont=os.listdir('./')
+
+    for dn in ['Coords','ML_preds','DFT_preds','Checkpoints']:
+        if dn not in dircont:
+            os.mkdir(dn)
+        
+    if 'tmp' not in dircont:
+        ProcComSetUp()
+        fp=open('./tmp/gpu_status.txt', 'w')
+        fp.write('initialized')
+        fp.close()
+
+
 def SetProcStatus(status):
     fp=open('./tmp/status.txt', 'w')
     fp.write(status)
@@ -114,13 +128,16 @@ def VASPSLURMBuilder(SLURMFILE):
 def OTFSlurmBuilder(SLURMFILE):
 
     os.popen('sbatch '+ SLURMFILE) #testchange
-    #os.popen("python3 -u MLFFProc.py > logs.txt")
+
 
     return FileIOReqHandlerOTF
 
 def SlurmStartup(
                  OTFBUILDER=OTFSlurmBuilder,
                  GPUSLURMFILE="MLFFProc_Submit",restart=False):
+    
+    if 'tmp' not in os.listdir('./'):
+        SetUp()
         
     if restart:
         SetGPUProcStatus("Restart")

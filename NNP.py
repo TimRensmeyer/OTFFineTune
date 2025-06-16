@@ -6,6 +6,9 @@ import torch.nn as nn
 from typing import List
 import numpy as np
 import copy
+
+import yaml
+
 from TrainProc import TrainProcComSetUp,SetTrainRequest,GetTrainStatus,SetTrainProcStatus
 from LogPriors import GaussianMeanField
 from MCMC import CyclicOptimizer
@@ -95,7 +98,7 @@ def Gaussian_NNP_Ens(model_list,ase_atoms):
 
 class EnsembleFF(nn.Module):
           
-     def __init__(self, device_list,n_models, constructor,constructor_args,restart=False):
+     def __init__(self, device_list,n_models, constructor,constructor_args,restart=False,path=''):
           self.model_list=[]
           self.dev_models=[[] for dev in device_list]
           if constructor=='SpiceNequIP':
@@ -119,6 +122,7 @@ class EnsembleFF(nn.Module):
           self.pred_dev=pred_dev
           self.model_list=[m.to(pred_dev) for m in self.model_list]
           self.nprocs=len(self.dev_models)
+          self.path=path
           print('procs:',self.nprocs,self.dev_models)
           TrainProcComSetUp(self.nprocs)
 
@@ -133,8 +137,8 @@ class EnsembleFF(nn.Module):
 
               model_count=len(self.dev_models[proc_number]) 
               SetTrainProcStatus(proc_number,'Starting Up')         
-              command=["python3","-u","Training.py",'{}'.format(proc_number),
-                       '{}'.format(dev),'{}'.format(n_models),constructor,init_type] +arg_list
+              command=["python3","-u","/beegfs/home/r/rensmeyt/Git/OTFFineTune/Training.py",'{}'.format(proc_number),
+                       '{}'.format(dev),'{}'.format(n_models),constructor,init_type,self.path] +arg_list
               subprocess.Popen(command,stdout=open("tmp/training{}.log".format(proc_number), "w"))
           if restart:
             #loading model states
@@ -211,6 +215,7 @@ class OTFForceField(nn.Module):
         self.n=0
         self.E_offset=0
         self.steps=0
+        self.StressIncluded=True
         if restart:
             OTFParams=torch.load('tmp/OTFParams')
             self.E=OTFParams[0]
@@ -227,11 +232,11 @@ class OTFForceField(nn.Module):
             atoms=ase.io.read(atoms)
         preds=self.MLFF.predict(atoms)
         if len(preds)==6:
-            StressIncluded=True
+            self.StressIncluded=True
             [E_pred,F_pred,S_pred,E_uncert,F_uncert,S_uncert]=preds
 
         else:
-            StressIncluded=False
+            self.StressIncluded=False
             [E_pred,F_pred,E_uncert,F_uncert]=preds
 
         conf=Confidence(self.E_thresh,E_uncert,self.n,self.E,a=1.5,b=10)
@@ -274,10 +279,15 @@ class OTFForceField(nn.Module):
     def recalibrate(self,new_data):
         if len(new_data)==4:
             atoms,E,F,S=new_data
-            (E_pred,F_pred,S_pred,E_uncert,F_uncert,S_uncert)=self.MLFF.predict(atoms)
+
         else:
             atoms,E,F=new_data
-            (E_pred,F_pred,E_uncert,F_uncert)=self.MLFF.predict(atoms)
+
+        out = self.MLFF.predict(atoms)
+        if len(out)==4:
+            (E_pred,F_pred,E_uncert,F_uncert)=out
+        else:
+            (E_pred,F_pred,S_pred,E_uncert,F_uncert,S_uncert)=out
         print('Force Error:',F_pred-F)
         if self.FirstForward:
             self.E_offset=E_pred-E
@@ -292,7 +302,8 @@ class OTFForceField(nn.Module):
         self.recalibrate(new_data)
         if self.FirstForward:
             new_data[1]+=self.E_offset
-
+        if len(new_data)==4 and not self.StressIncluded:
+            new_data=new_data[:3]
         self.MLFF.update(new_data)
         OTFParams=(self.E,self.n,self.E_offset,self.steps)
         torch.save(OTFParams,'tmp/OTFParams')

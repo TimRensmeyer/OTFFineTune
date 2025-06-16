@@ -1,5 +1,4 @@
-from Procs import SetGPUProcStatus, GetGPUProcStatus,GPUProcComSetUp,SetProcStatus
-from TrainProc import GetTrainStatus
+
 import time
 import subprocess
 import os
@@ -8,25 +7,40 @@ import ase
 import yaml
 import numpy as np
 #import shutup
+import sys
+
+
 
 if __name__ == "__main__":
    # shutup.please()
+    with open('testconfig.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+
+    CodePath=config['CodePath']
+    TargetPath=config['TargetPath']
+    sys.path.insert(0, CodePath)
+
+    from OTFFineTune.Procs import SetGPUProcStatus, GetGPUProcStatus,GPUProcComSetUp,SetProcStatus
+    from OTFFineTune.TrainProc import GetTrainStatus
+
     Restart=(GetGPUProcStatus()=="Restart")
-    os.popen("python3 VASPProc.py")
+    command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
+    os.popen(command)
     SetGPUProcStatus("OTF Force Field Starting Up")
     done=False
 
 
-    with open('testconfig.yaml', 'r') as file:
-        config = yaml.safe_load(file)
+  
+    
     n_procs=len(config['dev_list'])
     MLFF=NNP.EnsembleFF(device_list=config['dev_list'],
                         n_models=config['n_models'], 
                         constructor=config['NNPBuilder'],
-                        constructor_args=config['constructor_args'],restart=Restart)
+                        constructor_args=config['constructor_args'],restart=Restart,path=CodePath)
+    
     OTFForceField=NNP.OTFForceField(MLFF=MLFF,
                                     DFTReqHandler='VASPSLURM',
-                                    E_thresh=6,conf_thresh=0.95,restart=Restart)
+                                    E_thresh=0.05,conf_thresh=0.95,restart=Restart)
     ready=False
     while not ready:
         status=GetTrainStatus(n_procs)

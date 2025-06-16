@@ -3,8 +3,10 @@ import sys
 import os
 import time
 import torch
+import yaml
+import sys
 
-from TrainProc import SetTrainProcStatus,GetTrainProcStatus
+
 
 
 
@@ -14,11 +16,14 @@ if __name__ == "__main__":
 
 
         #(target_dev,pid,n_models,builder_func)=sys.argv[1:5]
-    (pid,target_dev,n_models,builder_func,init_type)=sys.argv[1:6]
+    (pid,target_dev,n_models,builder_func,init_type,path)=sys.argv[1:7]
     target_dev=torch.device("cuda:{}".format(target_dev))
     pid=int(pid)
     n_models=int(n_models)
-    builder_args=[float(arg) for arg in sys.argv[6:]]
+    sys.path.insert(0, path)
+
+    from TrainProc import SetTrainProcStatus,GetTrainProcStatus
+    builder_args=[float(arg) for arg in sys.argv[7:]]
     models=[]
     if init_type=='R':
         if builder_func=='SpiceNequIP':

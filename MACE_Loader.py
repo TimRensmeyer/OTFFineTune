@@ -3,6 +3,8 @@ from torch import nn as nn
 from mace.calculators import mace_mp, mace_off
 from mace.tools import torch_geometric
 from mace import data
+import yaml
+
 
 from DataLoader import weighted_dataloader
 from MCMC import CyclicOptimizer, GaussianMeanField

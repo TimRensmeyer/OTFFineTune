@@ -5,7 +5,6 @@ Disclaimer:
  The current version of the code is what could be generously called "research code".
  Meaning its still a mess.
  It currently requires adjusting some settings directly in python files.
- Also I have two versions of the code. One for the NequIP model and one for the MACE model because adding stresses and periodic boundaries broke some sections of the initial code which I developed for the NequIP model. I can send the other version of the code to anyone brave enough to try to use this version of the code but this will be fixed soon anyway.
 
 Future Plans:
  I am currently working on cleaning this code base and making it user friendly.

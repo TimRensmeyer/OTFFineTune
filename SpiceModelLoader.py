@@ -12,10 +12,12 @@ import yaml
 import sys
 import shutup
 shutup.please()
-with open('testconfig.yaml', 'r') as file:
+with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 CodePath=config['CodePath']
+ErrorThreshold=config['ErrorThreshold']
+ErrorThreshold
 sys.path.insert(0, CodePath)
 
 from OTFFineTune.MCMC import GaussianMeanField,CyclicOptimizer
@@ -54,7 +56,7 @@ class Network(nn.Module):
         E=self.lin(z)
         std_e=self.line(z)
         std_f=self.linf(z)
-        std_e=torch.exp(std_e)*0+0.05
+        std_e=torch.exp(std_e)*0+ErrorThreshold*0.1
         std_f=torch.exp(torch.stack([std_f]*3,dim=1))*0.1
 
         rescale=self.rescale[type_batch.long()].unsqueeze(1) 

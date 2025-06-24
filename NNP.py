@@ -9,6 +9,12 @@ import copy
 
 import yaml
 
+with open('runconfig.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+ErrorThreshold=config['ErrorThreshold']
+
+
 from TrainProc import TrainProcComSetUp,SetTrainRequest,GetTrainStatus,SetTrainProcStatus
 from LogPriors import GaussianMeanField
 from MCMC import CyclicOptimizer
@@ -201,7 +207,7 @@ def Confidence(e_bound,std,n,E,a,b):
     return conf*Z
 
 class OTFForceField(nn.Module):
-    def __init__(self,MLFF,DFTReqHandler,E_thresh=2,conf_thresh=0.95,restart=False):
+    def __init__(self,MLFF,DFTReqHandler,E_thresh=ErrorThreshold,conf_thresh=0.95,restart=False):
         super(OTFForceField,self).__init__()
         self.MLFF=MLFF
         if DFTReqHandler=='VASPSLURM':

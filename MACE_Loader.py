@@ -5,6 +5,12 @@ from mace.tools import torch_geometric
 from mace import data
 import yaml
 
+with open('runconfig.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+CodePath=config['CodePath']
+ErrorThreshold=config['ErrorThreshold']
+
 
 from DataLoader import weighted_dataloader
 from MCMC import CyclicOptimizer, GaussianMeanField
@@ -56,7 +62,7 @@ class Network(nn.Module):
         energy=out['energy']
         device=energy.device
         node_feats=torch.cat((out['node_feats'][:,:128],out['node_feats'][:,-128:]),dim=1)
-        e_stds=torch.exp(self.E_uncert(node_feats)).squeeze(-1)*0+0.6
+        e_stds=torch.exp(self.E_uncert(node_feats)).squeeze(-1)*0+ErrorThreshold*0.1
         
         force_uncert=torch.exp(self.F_uncert(node_feats)).squeeze(-1)*0.1
         force_uncert=torch.stack([force_uncert]*3,dim=-1)

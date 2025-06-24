@@ -10,3 +10,4 @@ constructor_args: [0.5]
 DFTCode: vasp_std
 DFTProcSubmitFile: VASPProc_Submit
 NNPProcSubmitFile: NNPProc_Submit
+ErrorThreshold: 0.5

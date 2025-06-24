@@ -24,7 +24,7 @@ if __name__ == "__main__":
         if status =='DFT Request':
             SetProcStatus('DFT Calculating')
             # Run the command and wait for it to finish
-           # result = subprocess.run(srun_command, check=True)
+            result = subprocess.run(srun_command, check=True)
             SetProcStatus('Finished Calculating')
 
         elif status=='Shutdown':

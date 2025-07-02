@@ -190,7 +190,7 @@ class NequIP_Wrapper(NNP):
         self.log_prior=GaussianMeanField(mean,std)
         dataloader=weighted_dataloader(bs=5,device=torch.device("cpu"))
         self.optimizer=CyclicOptimizer(self.model,self.log_prior,
-                                       dataloader=dataloader, max_lr=0.0001,cycle_length=200)
+                                       dataloader=dataloader, max_lr=0.0001,cycle_length=2000)
 
     def predict(self,ase_atoms):
         R=ase_atoms.get_positions()

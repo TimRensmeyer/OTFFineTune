@@ -1,0 +1,25 @@
+ALGO = Fast     
+EDIFF = 0.0001  
+EDIFFG = -0.02  
+ENCUT = 520     
+GGA = PE        
+IBRION = 0      
+ICHARG = 2      
+IDIPOL = 4      
+ISIF = 2       
+ISMEAR = -5    
+ISPIN = 2      
+ISTART = 0     
+ISYM = 0       
+LCHARG = False  
+LDIPOL = True   
+LMONO = True   
+LREAL = Auto    
+LWAVE  = False  
+NELECT = 1280   
+NCORE  = 16     
+NELM = 100    
+NELMIN = 3      
+
+LWAVE  =  .FALSE.
+LCHARG = .FALSE.

@@ -1,0 +1,13 @@
+CodePath: '/path/to/Source/Code/'                  #Path to the directory that contains the OTFFineTune folder
+TargetPath: '/path/to/run/folder/'                 #Path to the folder, this file is located in.
+DFTResourceManager: SLURM                          #Currently, only SLURM is implemented. This will probably be depreciated with further ASE integration
+NNPResourceManager: SLURM                          #option that currently exists and should be depreciated. Remove this line at your own risk though.
+FFType: Ensemble                                   # Only option that currently exists.
+n_models: 8                                        # number of monte carlo samples
+dev_list: [0,1,2,3,4,5,6,7]                       #list of gpus to be used. If less than 8 are available setting something like [0,0,0,0,1,1,1,1] will train on two gpus where 4 models are updated in parallel on each device. Setting [0,1] instead will update them sequentially.
+NNPBuilder: MACE                                  # what model to use
+constructor_args: [0.5]                           # For the models currently implemented, thsi is just the strength of the BNN prior.
+DFTCode: vasp_std                                 # only option that currently exists.
+DFTProcSubmitFile: VASPProc_Submit                # option that currently exists.
+NNPProcSubmitFile: NNPProc_Submit                 #option that currently exists and should be depreciated. Remove this line at your own risk though.
+ErrorThreshold: 10.0                               # Error threshold in kcal/mol

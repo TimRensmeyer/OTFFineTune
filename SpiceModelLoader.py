@@ -16,8 +16,9 @@ with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 CodePath=config['CodePath']
+
 ErrorThreshold=config['ErrorThreshold']
-ErrorThreshold
+
 sys.path.insert(0, CodePath)
 
 from OTFFineTune.MCMC import GaussianMeanField,CyclicOptimizer

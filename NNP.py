@@ -13,6 +13,10 @@ with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 ErrorThreshold=config['ErrorThreshold']
+try:
+    ForceErrorThresholds=config['ForceErrorThresholds']
+except:
+    ForceErrorThresholds=None
 
 
 from TrainProc import TrainProcComSetUp,SetTrainRequest,GetTrainStatus,SetTrainProcStatus
@@ -206,6 +210,25 @@ def Confidence(e_bound,std,n,E,a,b):
 
     return conf*Z
 
+def ForceConfidence(F_bounds,stds,n,F,a,b):
+    n_atoms=stds.shape[0]
+    if len(F_bounds)==1:
+        F_bounds=np.array([[F_bounds]*3]*n_atoms)
+    else:
+        F_bounds=np.stack([F_bounds]*3,axis=1)
+    print("Shape Check:", F_bounds.shape,stds.shape)
+    F_eff=0.5*F+b
+    d=(n+1)/2+a
+    denom=F_eff**0.5*2**0.5*stds
+    gam_log_num=scipy.special.gammaln(d)
+    gam_log_denom=scipy.special.gammaln(d-0.5)
+    prefactor=(2*np.pi*stds**2)**(-0.5)
+    Z=prefactor*np.exp(gam_log_num-gam_log_denom)
+    Z*=2/(F_eff**0.5)
+    conf=scipy.special.hyp2f1(0.5,d,1.5,-(F_bounds/denom)**2)*F_bounds
+
+    return conf*Z
+
 class OTFForceField(nn.Module):
     def __init__(self,MLFF,DFTReqHandler,E_thresh=ErrorThreshold,conf_thresh=0.95,restart=False):
         super(OTFForceField,self).__init__()
@@ -215,6 +238,11 @@ class OTFForceField(nn.Module):
         else:
             self.DFTReqHandler=DFTReqHandler
         self.E_thresh=E_thresh
+        self.F_Thresh=ForceErrorThresholds
+        if self.F_Thresh != None:
+            self.E_F=0
+            self.n_F=0
+
         self.conf_thresh=conf_thresh
         self.FirstForward=True
         self.E=0
@@ -229,6 +257,9 @@ class OTFForceField(nn.Module):
             self.E_offset=OTFParams[2]
             self.steps=OTFParams[3]
             self.FirstForward=False
+            if self.F_Thresh!=None:
+                self.E_F=OTFParams[4]
+                self.n_F=OTFParams[5]
     
 
 
@@ -246,6 +277,13 @@ class OTFForceField(nn.Module):
             [E_pred,F_pred,E_uncert,F_uncert]=preds
 
         conf=Confidence(self.E_thresh,E_uncert,self.n,self.E,a=1.5,b=10)
+        if self.F_Thresh != None:
+            F_conf=ForceConfidence(self.F_Thresh,F_uncert,self.n_F,self.E_F,a=1.5,b=10)
+            F_conf=np.min(F_conf)
+        else:
+            print("no Force threshold")
+            F_conf=1
+
         if log:
             preds.append(conf)
             torch.save(preds,'ML_preds/{}'.format(self.steps))
@@ -255,7 +293,7 @@ class OTFForceField(nn.Module):
         print("Predicted Confidence:", conf)
         print("Confidence Arguments:",self.E_thresh,E_uncert,self.n,self.E)
 
-        if (conf<self.conf_thresh and self.steps>1) or self.steps in [1]:
+        if (conf<self.conf_thresh or F_conf<self.conf_thresh or self.steps==1):
 
             dft_out=self.DFTReqHandler(atoms)
             if len(dft_out)==4:
@@ -311,7 +349,10 @@ class OTFForceField(nn.Module):
         if len(new_data)==4 and not self.StressIncluded:
             new_data=new_data[:3]
         self.MLFF.update(new_data)
-        OTFParams=(self.E,self.n,self.E_offset,self.steps)
+        if self.F_Thresh == None:
+            OTFParams=(self.E,self.n,self.E_offset,self.steps)
+        else:
+            OTFParams=(self.E,self.n,self.E_offset,self.steps,self.E_F,self.n_F)
         torch.save(OTFParams,'tmp/OTFParams')
           
 

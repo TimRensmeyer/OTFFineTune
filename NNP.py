@@ -292,7 +292,9 @@ class OTFForceField(nn.Module):
         print("Predicted Energy:",E_pred)
         print("Predicted Confidence:", conf)
         print("Confidence Arguments:",self.E_thresh,E_uncert,self.n,self.E)
-
+        print("Atom Types:", atoms.get_atomic_numbers())
+        if self.F_Thresh != None:
+            print("Confidence Arguments:",self.n_F,self.E_F,np.mean(F_uncert**2)**0.5)
         if (conf<self.conf_thresh or F_conf<self.conf_thresh or self.steps==1):
 
             dft_out=self.DFTReqHandler(atoms)
@@ -340,6 +342,11 @@ class OTFForceField(nn.Module):
       
             self.E+=(E-E_pred)**2/E_uncert**2
             self.n+=1
+            if self.F_Thresh != None:
+                print("calibration check:",((F-F_pred)**2).shape,F_uncert.shape)
+                self.E_F+=np.sum((F-F_pred)**2/F_uncert**2)
+                self.n_F+=np.sum((F-F_pred)*0+1)
+    
 
 
     def update(self,new_data):

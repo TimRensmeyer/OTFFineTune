@@ -135,7 +135,7 @@ class model(StochasticModel):
         e_error=torch.mean(torch.abs((Y_e.squeeze(1)-scale*pred_e.squeeze(1))))
         f_error=torch.mean(torch.abs((Y_f-scale*pred_f.squeeze(0))))
         print('energy error:',e_error.detach().cpu().item(),'force error:',f_error.detach().cpu().item(),
-              "energy std:",torch.mean(std_e).detach().cpu().item())
+              "force std:",torch.mean(std_f).detach().cpu().item())
         if not weighted:
             print(std_f.shape,Y_f.shape,pred_f.squeeze(0).shape)
         else:

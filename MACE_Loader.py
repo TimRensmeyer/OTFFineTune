@@ -133,7 +133,7 @@ class smodel(nn.Module):
         print(torch.mean(torch.abs((energy-dft_energy))).detach().cpu().item(),
               torch.mean(torch.abs((forces-dft_force))).detach().cpu().item(),
               torch.mean(torch.abs((stress-dft_stress))).detach().cpu().item(),
-              torch.mean(torch.abs((energy_uncert))).detach().cpu().item())
+              torch.mean(torch.abs((force_uncert))).detach().cpu().item())
 
         ll_e=exponent_e-0.5*torch.log(2*3.1415926*energy_uncert**2)
         ll_f=exponent_f-0.5*torch.log(2*3.1415926*force_uncert**2)

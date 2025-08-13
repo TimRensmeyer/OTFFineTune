@@ -24,8 +24,8 @@ if __name__ == "__main__":
     from OTFFineTune.TrainProc import GetTrainStatus
 
     Restart=(GetGPUProcStatus()=="Restart")
-    command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
-    os.popen(command)
+    #command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
+    #os.popen(command)
     SetGPUProcStatus("OTF Force Field Starting Up")
     done=False
 
@@ -54,6 +54,7 @@ if __name__ == "__main__":
         status=GetGPUProcStatus()
         if status =='OTF Request':
             SetGPUProcStatus('OTF Calculating')
+            print('OTF Calculating')
             atoms=ase.io.read('tmp/atoms.xyz')
             # Run the command and wait for it to finish
             out=OTFForceField(atoms)

@@ -216,18 +216,25 @@ def ForceConfidence(F_bounds,stds,n,F,a,b):
         F_bounds=np.array([[F_bounds]*3]*n_atoms)
     else:
         F_bounds=np.stack([F_bounds]*3,axis=1)
-    print("Shape Check:", F_bounds.shape,stds.shape)
-    F_eff=0.5*F+b
-    d=(n+1)/2+a
-    denom=F_eff**0.5*2**0.5*stds
-    gam_log_num=scipy.special.gammaln(d)
-    gam_log_denom=scipy.special.gammaln(d-0.5)
-    prefactor=(2*np.pi*stds**2)**(-0.5)
-    Z=prefactor*np.exp(gam_log_num-gam_log_denom)
-    Z*=2/(F_eff**0.5)
-    conf=scipy.special.hyp2f1(0.5,d,1.5,-(F_bounds/denom)**2)*F_bounds
 
-    return conf*Z
+    if n<2000:
+        print("Shape Check:", F_bounds.shape,stds.shape)
+        F_eff=0.5*F+b
+        d=(n+1)/2+a
+        denom=F_eff**0.5*2**0.5*stds
+        gam_log_num=scipy.special.gammaln(d)
+        gam_log_denom=scipy.special.gammaln(d-0.5)
+        prefactor=(2*np.pi*stds**2)**(-0.5)
+        Z=prefactor*np.exp(gam_log_num-gam_log_denom)
+        Z*=2/(F_eff**0.5)
+        conf=scipy.special.hyp2f1(0.5,d,1.5,-(F_bounds/denom)**2)*F_bounds
+
+        return conf*Z
+    else:
+        Mn=F/n
+        var_eff=stds**2*Mn
+        conf=scipy.special.erf(F_bounds/(2*var_eff)**0.5)
+        return conf
 
 class OTFForceField(nn.Module):
     def __init__(self,MLFF,DFTReqHandler,E_thresh=ErrorThreshold,conf_thresh=0.95,restart=False):
@@ -296,8 +303,11 @@ class OTFForceField(nn.Module):
         if self.F_Thresh != None:
             print("Confidence Arguments:",self.n_F,self.E_F,np.mean(F_uncert**2)**0.5)
         if (conf<self.conf_thresh or F_conf<self.conf_thresh or self.steps==1):
-
+            t0= time.time()
             dft_out=self.DFTReqHandler(atoms)
+            t1=time.time()
+            print("DFT Calculation took:",t1-t0,"seconds")
+            
             if len(dft_out)==4:
                 atoms,E,F,S=dft_out
                 E+=self.E_offset
@@ -306,7 +316,8 @@ class OTFForceField(nn.Module):
                 atoms,E,F=dft_out
                 E+=self.E_offset
                 self.update([atoms,E,F])
-
+            t2=time.time()
+            print("Update took:",t2-t1,"seconds")
             if self.FirstForward:
                 E+=self.E_offset
             self.FirstForward=False

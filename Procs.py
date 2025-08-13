@@ -97,8 +97,11 @@ def FileIOReqHandlerVASP(atoms):
         return atoms,energy,forces
 
 def FileIOReqHandlerOTF(atoms,IncludeStress=False):
-    write('tmp/atoms.xyz', atoms)
-
+    with open('tmp/atoms.xyz', 'w') as f:
+        write(f, atoms)
+    print('write finished')
+    print(f"[DEBUG] MLFFProc PID: {os.getpid()}, Host: {os.uname()[1]}")
+    #time.sleep(1)
     # Forwarding Request to VASPProc
     SetGPUProcStatus('OTF Request')
 

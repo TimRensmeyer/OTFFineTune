@@ -104,7 +104,7 @@ class model(StochasticModel):
         return e_pred,f_pred,(std_e,std_f)
 
 
-    def evaluate(self,data):
+    def evaluate(self,data,burnin=False):
         dev=next(iter(self.net.parameters())).device
         scale=self.scale
         X=data[0]
@@ -144,7 +144,7 @@ class model(StochasticModel):
         ll_e=exponent_e-0.5*torch.log(2*3.1415926*std_e.squeeze(1)**2)
         ll_f=exponent_f-0.5*torch.log(2*3.1415926*std_f**2)
 
-        if weighted:
+        if weighted and not burnin:
             return torch.sum(ll_f*force_weights)/bs+torch.sum(ll_e*weights)/bs
         else:
             return torch.sum(ll_f)/bs+torch.sum(ll_e)/bs   

@@ -4,6 +4,7 @@ from mace.calculators import mace_mp, mace_off
 from mace.tools import torch_geometric
 from mace import data
 import yaml
+import time
 
 with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
@@ -36,6 +37,7 @@ class Network(nn.Module):
         self.S_uncert=nn.Parameter(torch.zeros(1,),requires_grad=True)
 
     def forward(self, atoms_list,training=False):
+       # time0=time.time()
         #In a normal forward call the Input will be a list of ASE Atoms objects
         if isinstance(atoms_list, list):
             configs=data.utils.config_from_atoms_list(atoms_list)
@@ -53,10 +55,12 @@ class Network(nn.Module):
         else:
             X=atoms_list
 
-
+       # time1=time.time()
         device=next(iter(self.model.parameters())).device
         X=X.to(device)
         out=self.model(X.to_dict(),compute_stress = True,training=training)
+      #  time2=time.time()
+       # print(f"Data Preparation Time: {time1-time0:.2f} s, Model Prediction Time: {time2-time1:.2f} s")
         stress=out['stress']
         forces=out['forces']
         energy=out['energy']
@@ -92,7 +96,7 @@ class smodel(nn.Module):
         energy,forces,stress,energy_uncert,force_uncert,stress_uncert=self.net(atoms_list,training=training)
         return energy*23.0609,forces*23.0609,stress*23.0609,(energy_uncert,force_uncert,stress_uncert)
     
-    def evaluate(self,data):
+    def evaluate(self,data,burnin=False):
         dev=next(iter(self.net.parameters())).device
         atoms_list=data[0]
         
@@ -133,13 +137,13 @@ class smodel(nn.Module):
         print(torch.mean(torch.abs((energy-dft_energy))).detach().cpu().item(),
               torch.mean(torch.abs((forces-dft_force))).detach().cpu().item(),
               torch.mean(torch.abs((stress-dft_stress))).detach().cpu().item(),
-              torch.mean(torch.abs((force_uncert))).detach().cpu().item())
+              torch.max(torch.abs((force_uncert))).detach().cpu().item())
 
         ll_e=exponent_e-0.5*torch.log(2*3.1415926*energy_uncert**2)
         ll_f=exponent_f-0.5*torch.log(2*3.1415926*force_uncert**2)
         ll_s=exponent_s-0.5*torch.log(2*3.1415926*stress_uncert**2)
         
-        if not weighted:
+        if not weighted or burnin:
 
             ll_e=torch.sum(ll_e)/batch_size
             ll_f=torch.sum(ll_f)/batch_size

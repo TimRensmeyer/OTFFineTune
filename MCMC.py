@@ -233,7 +233,8 @@ class SGHMC(MCMCOptimizer):
         batchsize=len(X_batch)
         dataset_size=self.dataloader.len()
         lp=self.log_prior(model,(1.0/dataset_size))
-        ldd=model.evaluate(batch)
+        burnin=(self.steps<self.burnin_steps)
+        ldd=model.evaluate(batch,burnin=burnin)
         (-lp-ldd).backward()
         with torch.no_grad():
             inv_mass=self.inv_mass(model)

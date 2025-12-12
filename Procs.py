@@ -18,7 +18,7 @@ def ProcComSetUp():
 def SetUp():
     dircont=os.listdir('./')
 
-    for dn in ['Coords','ML_preds','DFT_preds','Checkpoints']:
+    for dn in ['Coords','ML_preds','DFT_preds','Checkpoints','SimFiles']:
         if dn not in dircont:
             os.mkdir(dn)
         
@@ -82,7 +82,8 @@ def FileIOReqHandlerVASP(atoms):
     #Waiting for the Calculation to finish
     while GetProcStatus() != 'Finished Calculating':
         time.sleep(1)
-
+    text=os.popen('cp OUTCAR SimFiles/OUTCAR{}'.format(len(os.listdir('Coords')))).read()
+    print(text)
     # extracting data from outcar
     atoms_out=read("OUTCAR", index=':')[0]
     energy=atoms_out.get_potential_energy()*23.0609
@@ -121,26 +122,39 @@ def FileIOReqHandlerOTF(atoms,IncludeStress=False):
         return atoms,energy,forces,stress,e_uncert,f_uncert,s_uncert
     else:
         return atoms,energy,forces,e_uncert,f_uncert
+    
+class OTFReqHandler():
+    def __init__(self,proc):
+        self.proc=proc
+    def __call__(self,atoms,IncludeStress=False):
+        return FileIOReqHandlerOTF(atoms,IncludeStress)
+    def shutdown(self):
+        if self.proc is not None:
+            SetGPUProcStatus('Shutdown')
+            SetProcStatus('Shutdown')
+            return_text=os.popen('scancel '+ self.proc).read()
 
-def VASPSLURMBuilder(SLURMFILE):
+            #self.proc.join()
+        return True
 
-    os.popen('sbatch '+ SLURMFILE)
-
-    return FileIOReqHandlerVASP()
 
 def OTFSlurmBuilder(SLURMFILE):
 
-    os.popen('sbatch '+ SLURMFILE) #testchange
+   # proc = os.popen('sbatch '+ SLURMFILE) #testchange
+    out=os.popen('sbatch '+ SLURMFILE).read()
+    out=out.split(' ')[-1]
+    out=out[:-1]
+    print("Job Id:",out)
+    req_handler=OTFReqHandler(out)
 
-
-    return FileIOReqHandlerOTF
+    return req_handler
 
 def SlurmStartup(
                  OTFBUILDER=OTFSlurmBuilder,
                  GPUSLURMFILE="MLFFProc_Submit",restart=False):
     
-    if 'tmp' not in os.listdir('./'):
-        SetUp()
+    #if 'tmp' not in os.listdir('./'):
+    SetUp()
         
     if restart:
         SetGPUProcStatus("Restart")

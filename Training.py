@@ -5,6 +5,7 @@ import time
 import torch
 import yaml
 import sys
+from Procs import GetGPUProcStatus
 
 
 
@@ -56,7 +57,8 @@ if __name__ == "__main__":
     while not done:
         time.sleep(1)
         status=GetTrainProcStatus(pid)
-        if status=="Shutdown":
+        shutdown=(GetGPUProcStatus()=='Shutdown')
+        if shutdown:
             i=0
             for model in models:
                 torch.save(model,'model_dict{}{}'.format(pid,i))

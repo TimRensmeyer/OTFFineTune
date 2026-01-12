@@ -71,21 +71,30 @@ def ProcLauncher(SLURMFILE=None,PROCFILE=None,Restart=False):
     elif PROCFILE!=None:
         proc = subprocess.Popen(['python3', PROCFILE])
 
-def FileIOReqHandlerVASP(atoms):
-
-    # Generating VASP geometry 
+def FileIOReqHandler(atoms):
     write('POSCAR',atoms,'vasp')
     
-    # Forwarding Request to VASPProc
+    # Forwarding Request to DFTProc
     SetProcStatus('DFT Request')
 
     #Waiting for the Calculation to finish
     while GetProcStatus() != 'Finished Calculating':
         time.sleep(1)
-    text=os.popen('cp OUTCAR SimFiles/OUTCAR{}'.format(len(os.listdir('Coords')))).read()
-    print(text)
+    print(os.listdir())
+
     # extracting data from outcar
-    atoms_out=read("OUTCAR", index=':')[0]
+    if os.path.isfile('OUTCAR'):
+        text=os.popen('cp OUTCAR SimFiles/OUTCAR{}'.format(len(os.listdir('Coords')))).read()
+        atoms_out=read("OUTCAR", index=':')[0]
+    elif os.path.isfile('onetep.out'):
+        text=os.popen('cp onetep.out SimFiles/onetep{}'.format(len(os.listdir('Coords')))).read()
+        atoms_out=read('onetep.xyz')
+        os.remove('onetep.xyz')
+        if os.path.isfile('onetep.tightbox_ngwfs'):
+            os.remove('onetep.tightbox_ngwfs')
+
+    print(text)
+    
     energy=atoms_out.get_potential_energy()*23.0609
     forces=atoms_out.get_forces()*23.0609
     try:
@@ -103,7 +112,7 @@ def FileIOReqHandlerOTF(atoms,IncludeStress=False):
     print('write finished')
     print(f"[DEBUG] MLFFProc PID: {os.getpid()}, Host: {os.uname()[1]}")
     #time.sleep(1)
-    # Forwarding Request to VASPProc
+    # Forwarding Request to DFTProc
     SetGPUProcStatus('OTF Request')
 
     #Waiting for the Calculation to finish

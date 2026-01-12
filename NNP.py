@@ -1,5 +1,6 @@
 import abc
 from abc import abstractmethod
+import os
 import torch
 import time
 import torch.nn as nn
@@ -277,8 +278,9 @@ class EnsembleFF(nn.Module):
                   init_type='R'
 
               model_count=len(self.dev_models[proc_number]) 
-              SetTrainProcStatus(proc_number,'Starting Up')         
-              command=["python3","-u","/beegfs/home/r/rensmeyt/Git/OTFFineTune/Training.py",'{}'.format(proc_number),
+              SetTrainProcStatus(proc_number,'Starting Up')   
+              OTF_dir = os.path.dirname(os.path.realpath(__file__))
+              command=["python3","-u",OTF_dir+"/Training.py",'{}'.format(proc_number),
                        '{}'.format(dev),'{}'.format(n_models),constructor,init_type,self.path] +arg_list
               subprocess.Popen(command,stdout=open("tmp/training{}.log".format(proc_number), "w"))
           if restart:
@@ -386,7 +388,8 @@ class EnsembleFFPar(nn.Module):
               
               model_count = len(self.dev_models[proc_number])
               SetTrainProcStatus(proc_number, 'Starting Up')
-              command = ["python3", "-u", "/beegfs/home/r/rensmeyt/Git/OTFFineTune/Training.py", '{}'.format(proc_number),
+              OTF_dir = os.path.dirname(os.path.realpath(__file__))
+              command = ["python3", "-u", OTF_dir+"/Training.py", '{}'.format(proc_number),
                          '{}'.format(dev), '{}'.format(n_models), constructor, init_type, self.path] + arg_list
               subprocess.Popen(command, stdout=open("tmp/training{}.log".format(proc_number), "w"))
           
@@ -517,7 +520,7 @@ class EnsembleFFPar(nn.Module):
           self._restart_inference_processes()
 
                 
-from Procs import FileIOReqHandlerVASP
+from Procs import FileIOReqHandler
 import ase
 import scipy
 
@@ -564,10 +567,9 @@ class OTFForceField(nn.Module):
     def __init__(self,MLFF,DFTReqHandler,E_thresh=ErrorThreshold,conf_thresh=0.95,restart=False):
         super(OTFForceField,self).__init__()
         self.MLFF=MLFF
-        if DFTReqHandler=='VASPSLURM':
-            self.DFTReqHandler=FileIOReqHandlerVASP
-        else:
-            self.DFTReqHandler=DFTReqHandler
+
+        self.DFTReqHandler=FileIOReqHandler
+
         self.E_thresh=E_thresh
         self.F_Thresh=ForceErrorThresholds
         if self.F_Thresh != None:
@@ -641,7 +643,7 @@ class OTFForceField(nn.Module):
             else:
                 atoms,E,F=dft_out
                 E+=self.E_offset
-                self.update([atoms,E,F])
+                self.update([atoms,E,F],[conf,F_conf])
             t2=time.time()
             print("Update took:",t2-t1,"seconds")
             if self.FirstForward:

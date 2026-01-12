@@ -80,7 +80,6 @@ def FileIOReqHandler(atoms):
     #Waiting for the Calculation to finish
     while GetProcStatus() != 'Finished Calculating':
         time.sleep(1)
-    print(os.listdir())
 
     # extracting data from outcar
     if os.path.isfile('OUTCAR'):

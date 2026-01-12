@@ -48,7 +48,6 @@ if __name__ == "__main__":
 
             # check set to false for now because onetep seems to trigger a non-zero exit
             result = subprocess.run(run_command, check=False)
-            print(result)
             SetProcStatus('Finished Calculating')
 
         elif status=='Shutdown':

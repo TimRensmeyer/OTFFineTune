@@ -4,7 +4,7 @@ from mace.calculators import mace_mp, mace_off
 from mace.tools import torch_geometric
 from mace import data
 import yaml
-import time
+import os
 
 with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
@@ -23,9 +23,15 @@ def init_weights_zeros(m):
             nn.init.zeros_(m.bias)
 
 class Network(nn.Module):
+
+    # load in the model, either default medium MACE-MPA-0 or user-defined from config file
     def __init__(self):
         super(Network,self).__init__()
-        model = mace_mp(model="medium", dispersion=False, default_dtype="float32", device='cpu',return_raw_model=True)
+        if 'ModelPath' in config:
+            print('Loading provided model {}'.format(os.path.basename(config['ModelPath'])))
+            model = mace_mp(model=config['ModelPath'], default_dtype="float32", device='cpu', return_raw_model=True)
+        else:
+            model = mace_mp(model="medium", dispersion=False, default_dtype="float32", device='cpu',return_raw_model=True)
         model.float()
         self.model=model
 

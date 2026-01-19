@@ -72,6 +72,30 @@ def ProcLauncher(SLURMFILE=None,PROCFILE=None,Restart=False):
         proc = subprocess.Popen(['python3', PROCFILE])
 
 def FileIOReqHandler(atoms):
+    n_current_step = len(os.listdir('Coords'))
+
+    # # Pure MACE results for training - debug option
+    # import yaml
+    # with open('runconfig.yaml', 'r') as file:
+    #     config = yaml.safe_load(file)
+    # if 'DFTReferenceSource' in config.keys() and config['DFTReferenceSource'] == 'MACE':
+    #     if len(os.listdir('SimFiles')) == 0:
+    #         print('running MACE')
+    #         from mace.calculators import mace_mp
+    #         calc = mace_mp(model="medium",dispersion=False,default_dtype="float32",device='cpu',return_raw_model=False)
+    #         atoms.calc = calc
+    #         energy=atoms.get_potential_energy()*23.0609
+    #         forces=atoms.get_forces()*23.0609
+    #         [xx,yy,zz,yz,zx,xy]=list(atoms.get_stress())
+    #         stress=np.array([[xx,xy,zx],
+    #                         [xy,yy,yz],
+    #                         [zx,yz,zz]])*23.0609
+    #     else:
+    #         print('running MLFF')
+    #         atoms,energy,forces,stress,e_uncert,f_uncert,s_uncert = FileIOReqHandlerOTF(atoms,IncludeStress=True)
+    #     write('SimFiles/MLFF{}.xyz'.format(n_current_step),atoms,'extxyz')
+    #     return atoms,energy,forces,stress
+
     write('POSCAR',atoms,'vasp')
     
     # Forwarding Request to DFTProc
@@ -82,17 +106,24 @@ def FileIOReqHandler(atoms):
         time.sleep(1)
 
     # extracting data from outcar
+    DFT_succeeded = True
     if os.path.isfile('OUTCAR'):
-        text=os.popen('cp OUTCAR SimFiles/OUTCAR{}'.format(len(os.listdir('Coords')))).read()
-        atoms_out=read("OUTCAR", index=':')[0]
-    elif os.path.isfile('onetep.out'):
-        text=os.popen('cp onetep.out SimFiles/onetep{}'.format(len(os.listdir('Coords')))).read()
+        text=os.popen('cp OUTCAR SimFiles/OUTCAR{}'.format(n_current_step)).read()
+        atoms_out=read('OUTCAR', index=':')[0]
+        os.remove('OUTCAR')
+    elif os.path.isfile('onetep.xyz'):
+        text=os.popen('cp onetep.out SimFiles/onetep{}'.format(n_current_step)).read()
         atoms_out=read('onetep.xyz')
         os.remove('onetep.xyz')
-        if os.path.isfile('onetep.tightbox_ngwfs'):
-            os.remove('onetep.tightbox_ngwfs')
+    else:
+        DFT_succeeded = False
 
     print(text)
+
+    if not DFT_succeeded:
+        atoms,energy,forces,stress,e_uncert,f_uncert,s_uncert = FileIOReqHandlerOTF(atoms,IncludeStress=True)
+        print('DFT calculation failed at step {}. Working with MLFF prediction instead.'.format(n_current_step))
+        return atoms,energy,forces,stress,'FAILED'
     
     energy=atoms_out.get_potential_energy()*23.0609
     forces=atoms_out.get_forces()*23.0609

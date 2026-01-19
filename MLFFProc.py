@@ -1,3 +1,7 @@
+'''
+Main program for running and coordinating anything related to DFT and MLFF
+'''
+
 
 import time
 import subprocess
@@ -5,7 +9,6 @@ import os
 import ase
 import yaml
 import numpy as np
-#import shutup
 import sys
 
 
@@ -46,10 +49,10 @@ if __name__ == "__main__":
                         constructor=config['NNPBuilder'],
                         constructor_args=config['constructor_args'],restart=Restart,path=CodePath)
    
-    if 'DFTReferenceSource' in config.keys():
-        DFTReqHandler = config['DFTReferenceSource']
-    else:
-        DFTReqHandler = 'VASPSLURM'
+    # if 'DFTReferenceSource' in config.keys():
+    #     DFTReqHandler = config['DFTReferenceSource']
+    # else:
+    #     DFTReqHandler = 'VASPSLURM'
  
     OTFForceField=NNP.OTFForceField(MLFF=MLFF,
                                     DFTReqHandler='VASPSLURM',
@@ -61,7 +64,7 @@ if __name__ == "__main__":
             ready=True
             break
         time.sleep(0.1)
-    
+
     SetGPUProcStatus("OTF Force Field Ready")
     while not done:
         status=GetGPUProcStatus()
@@ -97,4 +100,4 @@ if __name__ == "__main__":
             done=True
             break
         else:
-            time.sleep(0.01)
+            time.sleep(0.1)

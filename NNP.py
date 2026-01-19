@@ -636,7 +636,9 @@ class OTFForceField(nn.Module):
             t1=time.time()
             print("DFT Calculation took:",t1-t0,"seconds")
             
-            if len(dft_out)==4:
+            if dft_out[-1].any() == 'FAILED':
+                atoms,E,F,S,tmp=dft_out
+            elif len(dft_out)==4:
                 atoms,E,F,S=dft_out
                 E+=self.E_offset
                 self.update([atoms,E,F,S],[conf,F_conf])

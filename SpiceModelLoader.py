@@ -169,9 +169,9 @@ def NequIP_Loader():
     return copy.deepcopy(m)
 
 from OTFFineTune.NNP import NNP
-from OTFFineTune.NequIPDataLoader import weighted_dataloader
+from OTFFineTune.NequIPDataLoader import weighted_dataloader,dataloader
 class NequIP_Wrapper(NNP):
-    def __init__(self,args):
+    def __init__(self,args,max_lr=0.0001,cycle_length=2000,bs=5,weighted=True):
         super(NequIP_Wrapper,self).__init__()
         prior_strength=args[0]
         self.model=NequIP_Loader()
@@ -189,9 +189,13 @@ class NequIP_Wrapper(NNP):
             i+=1
 
         self.log_prior=GaussianMeanField(mean,std)
-        dataloader=weighted_dataloader(bs=5,device=torch.device("cpu"))
+        if weighted:
+            dataloader=weighted_dataloader(bs=bs,device=torch.device("cpu"))
+        else:
+            dataloader=dataloader(bs=bs,device=torch.device("cpu"))
+
         self.optimizer=CyclicOptimizer(self.model,self.log_prior,
-                                       dataloader=dataloader, max_lr=0.0001,cycle_length=2000)
+                                       dataloader=dataloader, max_lr=max_lr,cycle_length=cycle_length)
 
     def predict(self,ase_atoms):
         R=ase_atoms.get_positions()

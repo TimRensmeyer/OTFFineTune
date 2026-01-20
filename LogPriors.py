@@ -1,3 +1,23 @@
+"""
+Log-Prior Distributions for Bayesian Neural Networks
+
+All log-priors are callable objects that compute log p(θ) given a model.
+They enable:
+- Transfer learning: Gaussian priors centered on pretrained weights
+- Regularization: Constraining model parameters to prior expectations
+- Hyperpriors: Hierarchical priors on hyperparameters
+
+Log-priors accept a scaling factor to adjust their strength in the posterior
+(useful for importance weighting in mini-batch training).
+
+Classes:
+    GaussianMeanField: Gaussian prior with per-layer means and variances
+    LaplaceMeanField: Laplace (L1) prior
+    TransferLearningPrior: Gaussian prior relative to another model
+    HyperPrior: Empirical Bayes prior combining model and data likelihood
+    TransferLearningHyperPrior: Hierarchical prior for transfer learning
+"""
+
 # All logpriors are callable objects, that take a nn.Module subclass as input and return the (rescaled) logarithm of the prior of the model
 import torch
 import torch.nn as nn
@@ -6,6 +26,15 @@ import torch.nn as nn
 #Both mean and std are expected to be iterables with each sample corresponding to the model layer of the model.Parameters() .
 #The shapes of the samples have to broadcastable to the corresponding model layer shape.
 class GaussianMeanField(nn.Module):
+    """
+    Gaussian mean field log-prior for transfer learning.
+    
+    Implements log p(θ) = -0.5 Σ((θ_i - μ_i) / σ_i)² - 0.5 Σ log(2π σ_i²)
+    
+    Args:
+        mean: List of prior means for each parameter (typically pretrained weights)
+        std: List of prior standard deviations for each parameter
+    """
 
     def __init__(self,mean,std):
         super(GaussianMeanField,self).__init__()
@@ -31,6 +60,9 @@ class LaplaceMeanField(nn.Module):
         self.mean=mean      #mean of the gaussian density
 
     def forward(self,model,scaling):
+        """
+        Laplace (L1) prior: log p(θ) = -Σ|θ_i - μ_i|/σ_i - Σ log(2σ_i)
+        """
         log_prior=0.0
         for p,m,s in zip(model.parameters(),self.mean,self.std):
             dev=p.device
@@ -47,6 +79,12 @@ class TransferLearningPrior(nn.Module):
         self.std=std           
         
     def forward(self,model,p_model,scaling):
+        """
+        Transfer learning prior: Gaussian centered on another model's weights.
+        
+        Used in hierarchical settings where p_model represents a pretrained model
+        and this prior constrains the new model relative to it.
+        """
         log_prior=0.0
         s=self.std
         for p,m in zip(model.parameters(),p_model.parameters()):
@@ -63,6 +101,12 @@ class HyperPrior(nn.Module):
         self.prior=prior
 
     def forward(self,model,scale):
+        """
+        Empirical Bayes hyperprior combining prior and data likelihood of pre-training dataset.
+        
+        Used for learning prior hyperparameters. Computes:
+        log p(θ|data) ∝ log p(θ) + log p(data|θ)
+        """
         dataset_size=self.dl.len()
         effective_size=dataset_size*self.rescale
         lp1=self.prior(model,1/effective_size)
@@ -80,6 +124,17 @@ class TransferLearningHyperPrior(nn.Module):
         self.hprior=hyper_prior      #prior for the p_model e.g. posterior of the p_model on the auxiliary dataset
         
     def forward(self,models,scale):
+        """
+        Hierarchical transfer learning prior.
+        
+        Combines two priors:
+        - prior: Gaussian prior on current model relative to pretrained model
+        - hprior: Empirical Bayes prior on the pretrained model itself
+        
+        Args:
+            models: Object with .model and .p_model attributes
+            scale: Prior strength scaling factor
+        """
         model=models.model
         p_model=models.p_model
         lp1=self.prior(model,p_model,scale)

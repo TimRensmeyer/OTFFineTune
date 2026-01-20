@@ -1,3 +1,55 @@
+"""
+Training Subprocess Manager
+
+This module runs as a separate subprocess spawned by EnsembleFF. Each subprocess:
+1. Initializes an ensemble of neural network models on a specific GPU
+2. Listens for training requests from the main process
+3. Executes SGHMC optimization cycles on new data
+4. Saves model checkpoints after training
+
+The subprocess communicates with the main process through shared temporary files.
+Model state is serialized to CPU (due to HPC memory layout constraints) for
+inter-process transfer.
+
+Command-line arguments:
+    pid: Process ID (0 to nprocs-1)
+    target_dev: CUDA device index
+    n_models: Number of models this process manages
+    builder_func: Model class ('SpiceNequIP' or 'MACE')
+    init_type: 'I' (initialize new) or 'R' (restore from checkpoint)
+    path: Path to code repository
+    constructor_args: Variable arguments for model builder
+"""
+
+"""
+Training Subprocess for Ensemble Model Updates
+
+This module runs as a separate process (one per GPU device) and handles the
+continuous retraining of neural network potentials using SGHMC optimization.
+
+Workflow:
+1. Initialize ensemble of models on assigned GPU device
+2. Load model checkpoints if resuming (restart=True)
+3. Poll for training requests from main process
+4. On request: load new data, update each model with SGHMC cycles
+5. Save updated model states and signal completion
+
+The subprocess uses file-based communication via status files in tmp/ for
+compatibility with HPC environments and checkpoint/restart capabilities.
+
+Entry Point:
+    python Training.py <pid> <device_id> <n_models> <builder> <init_type> <path> [builder_args...]
+    
+    Args:
+        pid: Process ID for this training subprocess
+        device_id: CUDA device ID
+        n_models: Number of models in ensemble
+        builder: Model builder name ('SpiceNequIP' or 'MACE')
+        init_type: 'I' for fresh initialization, 'R' for restart from checkpoint
+        path: Path to code repository
+        builder_args: Additional arguments for model builder
+"""
+
 import sys
 
 import os
@@ -5,6 +57,7 @@ import time
 import torch
 import yaml
 import sys
+
 
 
 

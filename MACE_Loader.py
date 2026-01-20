@@ -1,3 +1,17 @@
+"""
+MACE Potential Wrapper with Uncertainty Quantification
+
+This module wraps the foundation MACE model for use in the OTF fine-tuning framework.
+It adds:
+- Aleatoric uncertainty heads (energy and force uncertainties)
+- Gaussian log-likelihood loss for Bayesian inference
+- Integration with SGHMC training via CyclicOptimizer
+
+
+The Network class loads a MACE MP model and augments it with trainable uncertainty
+heads. 
+"""
+
 import torch
 from torch import nn as nn
 from mace.calculators import mace_mp, mace_off
@@ -16,12 +30,24 @@ from DataLoader import weighted_dataloader
 from MCMC import CyclicOptimizer, GaussianMeanField
 
 def init_weights_zeros(m):
+    """Initialize network weights to zero."""
     if isinstance(m, nn.Linear):
         nn.init.zeros_(m.weight)
         if m.bias is not None:
             nn.init.zeros_(m.bias)
 
 class Network(nn.Module):
+    """
+    MACE-based neural network with uncertainty quantification.
+    
+    Loads foundation MACE MP model and adds trainable uncertainty heads:
+    - E_uncert: Energy uncertainty head (converts node features to single scalar)
+    - F_uncert: Force uncertainty head
+    - S_uncert: Stress uncertainty (scalar parameter)
+    
+    The uncertainty heads use node-level features and output log-uncertainties
+    which are exponentiated to produce positive numbers.
+    """
     def __init__(self):
         super(Network,self).__init__()
         model = mace_mp(model="medium", dispersion=False, default_dtype="float32", device='cpu',return_raw_model=True)
@@ -84,6 +110,15 @@ class Network(nn.Module):
 
 
 class smodel(nn.Module):
+    """
+    Probabilistic model wrapper for MACE Network.
+    
+    Provides training-ready interface with:
+    - predict(): Generate predictions with uncertainties
+    - evaluate(): Compute Gaussian negative log-likelihood
+    
+    Supports weighted importance sampling for loss computation.
+    """
     def __init__(self):
         super(smodel,self).__init__()
         self.net=Network()
@@ -157,6 +192,16 @@ class smodel(nn.Module):
 
 
 class MACE_Wrapper(nn.Module):
+    """
+    Complete training wrapper for MACE potential to integrate into NNP.py file.
+    
+    Integrates Network, smodel, and CyclicOptimizer for on-the-fly training.
+    Sets up Gaussian mean-field priors for transfer learning based on
+    initialized parameter values.
+    
+    Args:
+        args: [prior_strength] - strength of Gaussian prior on parameters
+    """
     def __init__(self,args):
         super(MACE_Wrapper,self).__init__()
         prior_strength=args[0]
@@ -182,17 +227,21 @@ class MACE_Wrapper(nn.Module):
                                          max_lr=0.001)
         
     def predict(self,ase_atoms):
+        """Generate single prediction with uncertainties in eV/Å units."""
         out=self.model.predict([ase_atoms])
         return [out[0],out[1],out[2],out[3][0],out[3][1],out[3][2]]
     
     def change_device(self,device):
+        """Move model and optimizer to device."""
         self.optimizer.change_device(device)
         self.model=self.model.to(device)
     
     def update(self,new_data):
+        """Retrain with new labeled data using CyclicOptimizer."""
         self.optimizer.add(new_data)
         self.model=self.optimizer.run(self.model)
 
 def MACE_Builder(args):
+    """Factory function to create MACE_Wrapper instance."""
     return MACE_Wrapper(args)
 

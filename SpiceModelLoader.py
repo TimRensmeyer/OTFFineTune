@@ -1,3 +1,21 @@
+"""
+SPICE/NequIP Potential Wrapper with Uncertainty Quantification
+
+This module wraps a NequIP model that was pretrained on the
+SPICE Dataset (foundation model) for use in the OTF fine-tuning framework.
+
+
+The Network class extends the pre-trained model with trainable uncertainty heads.
+The wrapper handles model predictions, likelihood computation, 
+and training for all supported elements.
+
+Key Features:
+- Aleatoric uncertainty heads for energy and forces
+- Integration with SGHMC sampling via CyclicOptimizer
+- Trainable uncertainty estimates via neural network heads
+- Gaussian negative log-likelihood loss for Bayesian sampling
+"""
+
 import nequip
 from nequip.utils.config import Config
 import torch
@@ -29,6 +47,19 @@ model=model_from_config(conf,initialize=True).model
 base=nn.Sequential(*[model.func[i] for i in range(len(model.func)-4)])
 
 class Network(nn.Module):
+    """
+    NequIP-based neural network with uncertainty quantification.
+    
+    Extends pretrained SPICE foundation model with:
+    - Trainable energy uncertainty head
+    - Trainable force uncertainty head
+    
+    Uses the Batch class from the NequIP library for input graph representation.
+    Uncertainty heads are initialized to output small uncertainties.
+    
+    Args:
+        dict_size: Number of element types (default 100)
+    """
     def __init__(self,dict_size=4):
         super(Network,self).__init__()
         self.rescale=nn.Parameter(torch.ones(dict_size,),requires_grad=True)
@@ -82,12 +113,33 @@ class Network(nn.Module):
 
 from MCMC import StochasticModel
 class model(StochasticModel):
+    """
+    Probabilistic model wrapper for the Network class above.
+    
+    Provides training-ready interface with:
+    - predict(): Generate predictions with uncertainties
+    - evaluate(): Compute Gaussian negative log-likelihood
+    
+    Converts ASE atomic structures to NequIP graph representation for inference.
+    Handles unit conversions between the SPICE dataset (atomic units) and internal units.
+    """
     def __init__(self,net,scale=14.3117/0.529177):
         super(model,self).__init__()
         self.net=net
         self.scale=scale
     
     def predict(self,Atoms,R,Lattice=None):
+        """
+        Generate single prediction with uncertainties.
+        
+        Args:
+            Atoms: Array of atomic numbers
+            R: Position array in Ångströms
+            Lattice: (unused) for API compatibility
+            
+        Returns:
+            (energy, forces, (energy_std, force_std)) in kcal/mol and kcal/molÅ
+        """
         dev=next(iter(self.net.parameters())).device
         R=torch.tensor(R).to(dev)
         x_a=torch.tensor(Atoms).long().to(dev)
@@ -104,6 +156,19 @@ class model(StochasticModel):
 
 
     def evaluate(self,data):
+        """
+        Compute Gaussian negative log-likelihood on mini-batch.
+        
+        Supports weighted importance sampling for unbiasing gradient estimates 
+        when using a wweighted dataloader.
+        
+        Args:
+            data: (X_batch, (Y_e, Y_f)) or (X_batch, (Y_e, Y_f), weights)
+                  - X_batch: Batch class from the NequIP library
+                  - Y_e: Energy targets (batch_size,)
+                  - Y_f: Force targets, list of (n_atoms_i, 3)
+                  - weights: Importance sampling weights (optional)
+        """
         dev=next(iter(self.net.parameters())).device
         scale=self.scale
         X=data[0]
@@ -150,8 +215,16 @@ class model(StochasticModel):
 
 
 def NequIP_Loader():
+    """
+    Initialize NequIP model with pretrained weights from checkpoint.
+    
+    Loads foundation model weights from SpiceDict checkpoint, preserving
+    pretrained features while zeroing out uncertainty heads for transfer learning.
+    
+    Returns:
+        model: Initialized probabilistic model with uncertainty quantification
+    """
 
-    module=Network(dict_size=100)
     SpiceDict=torch.load(CodePath +'OTFFineTune/Dicts/SpiceDict',map_location=torch.device('cpu'))
     keys=SpiceDict.keys()
     dict={}
@@ -170,6 +243,18 @@ def NequIP_Loader():
 from OTFFineTune.NNP import NNP
 from OTFFineTune.NequIPDataLoader import weighted_dataloader
 class NequIP_Wrapper(NNP):
+    """
+    Complete training wrapper for SPICE potential with on-the-fly fine-tuning
+    for integration into the NNP.py structure.
+    
+    Integrates Network, model, and CyclicOptimizer for Bayesian transfer learning.
+    Sets up selective Gaussian priors:
+    - Weak priors on uncertainty head parameters (layers 5-16)
+    - Strong priors on foundation model parameters for stability
+    
+    Args:
+        args: [prior_strength] - strength of Gaussian prior on parameters
+    """
     def __init__(self,args):
         super(NequIP_Wrapper,self).__init__()
         prior_strength=args[0]
@@ -193,6 +278,7 @@ class NequIP_Wrapper(NNP):
                                        dataloader=dataloader, max_lr=0.0001,cycle_length=2000)
 
     def predict(self,ase_atoms):
+        """Generate single prediction with uncertainties from ASE Atoms object."""
         R=ase_atoms.get_positions()
         Atoms=ase_atoms.get_atomic_numbers()
         e_pred,f_pred,(std_e,std_f)=self.model.predict(Atoms,R)
@@ -200,12 +286,15 @@ class NequIP_Wrapper(NNP):
         return (e_pred,f_pred,std_e,std_f)
     
     def change_device(self,device):
+        """Move model and optimizer to device."""
         self.optimizer.change_device(device)
         self.model=self.model.to(device)
 
     def update(self,new_data):
+        """Retrain with new labeled data using CyclicOptimizer."""
         self.optimizer.add(new_data)
         self.model=self.optimizer.run(self.model)
 
 def NequIP_Builder(args):
+    """Factory function to create NequIP_Wrapper instance."""
     return NequIP_Wrapper(args)

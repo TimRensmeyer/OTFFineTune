@@ -1,3 +1,24 @@
+"""
+Neural Network Potential (NNP) Framework
+
+This module provides the core architecture for on-the-fly fine-tuning of neural network potentials.
+It defines abstract base classes for NNP models and implements the ensemble-based uncertainty
+quantification framework along with the main OTFForceField class that orchestrates the workflow.
+
+Main Components:
+- NNP: Abstract base class for neural network potentials
+- Gaussian_NNP_Ens: Ensemble prediction with Gaussian posterior approximation
+- EnsembleFF: Manages ensemble of models across multiple GPU processes
+- OTFForceField: Main interface for on-the-fly fine-tuning orchestration
+- Confidence: Calculates model confidence based on uncertainty estimates
+
+The module integrates with subprocess-based training processes and supports
+stress tensor predictions for enhanced structural accuracy.
+
+To adapt this repository for an electronic structure software a small modification to the
+OTFForceField class is needed and highlighted in the class implementation itself.
+"""
+
 import abc
 from abc import abstractmethod
 import torch
@@ -6,6 +27,7 @@ import torch.nn as nn
 from typing import List
 import numpy as np
 import copy
+import os
 
 import yaml
 
@@ -22,26 +44,47 @@ import subprocess
 
 
 class NNP(abc.ABC,nn.Module):
+    """
+    Abstract base class for Neural Network Potential models.
+    
+    All NNP implementations should inherit from this class and provide:
+    - predict(): Generate predictions (energies, forces, uncertainties) from atomic structures
+    - update(): Add new labeled data and retrain the model
+    """
 
     __metaclass__=abc.ABCMeta
 
     def __init__(self):
         super(NNP,self).__init__()
 
-    #Input:
-        #ase_struct: An ase structure for which the NNP is supposed to make a predictions
-    #Output:
-        # The output is expected to be a list of length at least 4 [E_pred,F_pred,E_std,F_std,...]
-        # The frist 4 entries are pytorch tensors of shapes (1,),(N,3),(1,),(N,3) where N is the 
-        # number of atoms in the structure.
     @abc.abstractmethod
     def predict(self,ase_atoms):
+        """
+        Generate predictions for a given atomic structure.
+        
+        Args:
+            ase_atoms: ASE Atoms object representing atomic structure
+            
+        Returns:
+            List of predictions: [E_pred, F_pred, E_std, F_std, ...]
+            - E_pred (Tensor): Predicted energy, shape (1,)
+            - F_pred (Tensor): Predicted forces, shape (N,3) where N is number of atoms
+            - E_std (Tensor): Energy uncertainty, shape (1,)
+            - F_std (Tensor): Force uncertainty, shape (N,3)
+            - Optional: S_pred, S_std (stress and stress uncertainty)
+        """
         ...
 
-    #This method takes a new labeled data point and updates the NNP
     @abc.abstractmethod
     def update(self,new_data):
-         ...
+        """
+        Update the NNP with new labeled data and retrain.
+        
+        Args:
+            new_data: List containing [atoms, energy, forces] or [atoms, energy, forces, stress]
+        """
+        ...
+
          
 
 
@@ -50,6 +93,26 @@ class NNP(abc.ABC,nn.Module):
 # A wrapper function to make predictions from an ensemble of models
 # by fitting a Gaussian to the ensemble predictive distribution
 def Gaussian_NNP_Ens(model_list,ase_atoms):
+    """
+    Ensemble prediction with Gaussian posterior approximation.
+    
+    Combines predictions from multiple models by:
+    1. Collecting individual predictions with aleatoric uncertainties
+    2. Computing ensemble variance (epistemic uncertainty)
+    3. Combining with mean aleatoric uncertainty
+    4. Fitting a Gaussian to the predictive distribution
+    
+    Args:
+        model_list: List of NNP models
+        ase_atoms: ASE Atoms object
+        
+    Returns:
+        List of predictions [E, F, S, E_std, F_std, S_std] or [E, F, E_std, F_std]
+        containing posterior means and standard deviations combining:
+        - Epistemic uncertainty (ensemble variance)
+        - Aleatoric uncertainty (mean model confidence)
+    """
+
 
     Energies=[]
     Forces=[]
@@ -103,50 +166,74 @@ def Gaussian_NNP_Ens(model_list,ase_atoms):
 
 
 class EnsembleFF(nn.Module):
-          
-     def __init__(self, device_list,n_models, constructor,constructor_args,restart=False,path=''):
-          self.model_list=[]
-          self.dev_models=[[] for dev in device_list]
-          if constructor=='SpiceNequIP':
-              from SpiceModelLoader import NequIP_Loader,NequIP_Wrapper,NequIP_Builder
-              builder=NequIP_Builder
-          elif constructor=='MACE':
-              from MACE_Loader import MACE_Builder
-              builder=MACE_Builder
-          else:
-              print('Error: Model constructor {} not recognized'.format(constructor))
-          for i in range(n_models):
-               m=builder(constructor_args)
-               dev=i%len(device_list)
-               self.dev_models[dev].append(i)
-               self.model_list.append(m)
-          
-          self.dev_models=[models for models in self.dev_models if models!=[]]
+    """
+    Ensemble Force Field Manager.
+    
+    Manages an ensemble of neural network potentials distributed across multiple
+    GPU processes. Handles:
+    - Model initialization and distribution across devices
+    - Training subprocess management (SGHMC optimization)
+    - Synchronized model updates and checkpointing
+    - Ensemble predictions with uncertainty quantification
+    
+    The class spawns independent training processes for each GPU device,
+    communicating through shared temporary files. Model state is serialized
+    for cross-process synchronization.
+    
+    Args:
+        device_list: List of CUDA device IDs
+        n_models: Total number of models in ensemble
+        constructor: Model builder name ('SpiceNequIP' or 'MACE')
+        constructor_args: Arguments for model builder
+        restart: Whether to restore from checkpoint
+        path: Code repository path
+    """
+     
+    def __init__(self, device_list,n_models, constructor,constructor_args,restart=False,path=''):
+        self.model_list=[]
+        self.dev_models=[[] for dev in device_list]
+        if constructor=='SpiceNequIP':
+            from SpiceModelLoader import NequIP_Loader,NequIP_Wrapper,NequIP_Builder
+            builder=NequIP_Builder
+        elif constructor=='MACE':
+            from MACE_Loader import MACE_Builder
+            builder=MACE_Builder
+        else:
+            print('Error: Model constructor {} not recognized'.format(constructor))
+        for i in range(n_models):
+            m=builder(constructor_args)
+            dev=i%len(device_list)
+            self.dev_models[dev].append(i)
+            self.model_list.append(m)
+        
+        self.dev_models=[models for models in self.dev_models if models!=[]]
 
-          self.device_list=device_list
-          pred_dev=torch.device("cuda:{}".format(device_list[0]))
-          self.pred_dev=pred_dev
-          self.model_list=[m.to(pred_dev) for m in self.model_list]
-          self.nprocs=len(self.dev_models)
-          self.path=path
-          print('procs:',self.nprocs,self.dev_models)
-          TrainProcComSetUp(self.nprocs)
+        self.device_list=device_list
+        pred_dev=torch.device("cuda:{}".format(device_list[0]))
+        self.pred_dev=pred_dev
+        self.model_list=[m.to(pred_dev) for m in self.model_list]
+        self.nprocs=len(self.dev_models)
+        self.path=path
+        print('procs:',self.nprocs,self.dev_models)
+        TrainProcComSetUp(self.nprocs)
 
-          #Starting up training processes
-          for proc_number in range(self.nprocs):
-              n_models=len(self.dev_models[proc_number])
-              dev=self.device_list[proc_number] 
-              arg_list= ['{}'.format(arg) for arg in constructor_args]
-              init_type='I'
-              if restart:
-                  init_type='R'
+        #Starting up training processes
+        for proc_number in range(self.nprocs):
+            n_models=len(self.dev_models[proc_number])
+            dev=self.device_list[proc_number] 
+            arg_list= ['{}'.format(arg) for arg in constructor_args]
+            init_type='I'
+            if restart:
+                init_type='R'
 
-              model_count=len(self.dev_models[proc_number]) 
-              SetTrainProcStatus(proc_number,'Starting Up')         
-              command=["python3","-u","/beegfs/home/r/rensmeyt/Git/OTFFineTune/Training.py",'{}'.format(proc_number),
+            model_count=len(self.dev_models[proc_number]) 
+            SetTrainProcStatus(proc_number,'Starting Up')         
+            OTF_dir = os.path.dirname(os.path.realpath(__file__))
+            command=["python3","-u",OTF_dir+"/Training.py",'{}'.format(proc_number),
                        '{}'.format(dev),'{}'.format(n_models),constructor,init_type,self.path] +arg_list
-              subprocess.Popen(command,stdout=open("tmp/training{}.log".format(proc_number), "w"))
-          if restart:
+
+            subprocess.Popen(command,stdout=open("tmp/training{}.log".format(proc_number), "w"))
+        if restart:
             #loading model states
             i=0
             for proc_number in range(self.nprocs):
@@ -158,20 +245,40 @@ class EnsembleFF(nn.Module):
                     self.model_list[i]=model
                     i+=1
 
-     def shutdown(self):
-         for proc_number in range(self.nprocs):
-             SetTrainProcStatus(proc_number,'Shutdown')
-         
-     def predict(self,ase_atoms):
-          
-          return Gaussian_NNP_Ens(self.model_list, ase_atoms)
-     
-     def update(self,new_data):
-          
-          torch.save(new_data,'tmp/new_data')
-          SetTrainRequest(self.nprocs)
-          done=False
-          while not done:
+    def shutdown(self):
+        """Shutdown all training subprocesses gracefully."""
+        for proc_number in range(self.nprocs):
+            SetTrainProcStatus(proc_number,'Shutdown')
+        
+    def predict(self,ase_atoms):
+        """
+        Generate ensemble predictions with uncertainty quantification.
+        
+        Args:
+            ase_atoms: ASE Atoms object
+            
+        Returns:
+            Gaussian-approximated ensemble predictions
+        """
+        
+        return Gaussian_NNP_Ens(self.model_list, ase_atoms)
+    
+    def update(self,new_data):
+        """
+        Add new labeled data and trigger ensemble retraining.
+        
+        Serializes data and signals all training processes to perform
+        SGHMC optimization updates. Synchronizes until all models complete
+        retraining before loading updated model states.
+        
+        Args:
+            new_data: [atoms, energy, forces] or [atoms, energy, forces, stress]
+        """
+
+        torch.save(new_data,'tmp/new_data')
+        SetTrainRequest(self.nprocs)
+        done=False
+        while not done:
             time.sleep(0.1)
             status=GetTrainStatus(self.nprocs)
             if status=='Finished':
@@ -179,21 +286,38 @@ class EnsembleFF(nn.Module):
                 done=True
 
         #loading updated models
-          i=0
-          for proc_number in range(self.nprocs):
-              for model_id in range(len(self.dev_models[proc_number])):
-                  model=self.model_list[i]
-                  model=model.to(torch.device('cpu')) # This may look stupid but the memories of the GPUs in our hpc arent linked properly so we have to take a cpu detour.
-                  model.load_state_dict(torch.load('model_dict{}{}'.format(proc_number,model_id),map_location=torch.device('cpu')))
-                  model=model.to(self.pred_dev)
-                  self.model_list[i]=model
-                  i+=1
+        i=0
+        for proc_number in range(self.nprocs):
+            for model_id in range(len(self.dev_models[proc_number])):
+                model=self.model_list[i]
+                model=model.to(torch.device('cpu')) # This may look stupid but the memories of the GPUs in our hpc arent linked properly so we have to take a cpu detour.
+                model.load_state_dict(torch.load('model_dict{}{}'.format(proc_number,model_id),map_location=torch.device('cpu')))
+                model=model.to(self.pred_dev)
+                self.model_list[i]=model
+                i+=1
                 
 from Procs import FileIOReqHandlerVASP
 import ase
 import scipy
 
 def Confidence(e_bound,std,n,E,a,b):
+    """
+    Calculate model confidence using Student's t-distribution.
+    
+    Uses a Gamma distribution based confidence metric to quantify
+    reliability of energy predictions. Combines energy error bounds with
+    uncertainty estimates and cumulative squared errors.
+    
+    Args:
+        e_bound: Energy error threshold
+        std: Energy standard deviation
+        n: Number of accumulated squared errors
+        E: Cumulative squared energy error
+        a, b: Gamma distribution hyperparameters
+        
+    Returns:
+        float: Confidence value in range [0, 1]
+    """
     E_eff=0.5*E+b
     d=(n+1)/2+a
     denom=E_eff**0.5*2**0.5*std
@@ -207,6 +331,37 @@ def Confidence(e_bound,std,n,E,a,b):
     return conf*Z
 
 class OTFForceField(nn.Module):
+    """
+    On-the-Fly Force Field with Active Learning.
+    
+    Main orchestrator for on-the-fly fine-tuning of neural network potentials.
+    Manages the feedback loop between:
+    - ML inference (EnsembleFF predictions with uncertainty)
+    - Confidence assessment 
+    - DFT reference calculations (when confidence < threshold)
+    - Model retraining with new data
+    
+    The class maintains cumulative statistics for energy calibration and
+    confidence scoring. Predictions are cached alongside DFT calculations
+    for analysis and debugging.
+    
+    Args:
+        MLFF: EnsembleFF instance
+        DFTReqHandler: DFT calculator interface ('VASPSLURM' or custom callable)
+        E_thresh: Energy error threshold for confidence calculation
+        conf_thresh: Confidence threshold for triggering DFT calculation (default 0.95)
+        restart: Whether to restore from checkpoint
+
+    To adapt this repository for a different electronic structure method,
+    it is required that the DFTReqHandler is set to the custom interface function 
+    implemented in Procs.py. 
+    This class is constructed in the MLFF.py file. The argument 'DFTReqHandler' is used
+    to differentiate which electronic structure interface should be used.
+    You can either chose to change the code here to ignore this argument and
+    always use the desired electronic structure interface or you can add a new keyword 
+    and condition to set this interface as the DFTReqHandler and make sure that in 
+    MLFFProc.py the corresponding keyword is passed as an argument.
+    """
     def __init__(self,MLFF,DFTReqHandler,E_thresh=ErrorThreshold,conf_thresh=0.95,restart=False):
         super(OTFForceField,self).__init__()
         self.MLFF=MLFF
@@ -233,6 +388,25 @@ class OTFForceField(nn.Module):
 
 
     def forward(self,atoms,log=True):
+        """
+        Main on-the-fly force field prediction step.
+        
+        For each MD step:
+        1. Get ML prediction with uncertainty
+        2. Calculate confidence metric
+        3. If confidence < threshold: request DFT calculation and retrain
+        4. Otherwise: use ML prediction
+        
+        All predictions and reference calculations are saved for analysis.
+        
+        Args:
+            atoms: ASE Atoms object or path to XYZ file
+            log: Whether to cache predictions and coordinates
+            
+        Returns:
+            For DFT predictions: [atoms, E_dft, F_dft, S_dft, 0, 0, 0]
+            For confident predictions: [atoms, E_ml, F_ml, E_uncert, F_uncert]
+        """
         self.steps+=1
         if isinstance(atoms, str):
             atoms=ase.io.read(atoms)
@@ -283,6 +457,16 @@ class OTFForceField(nn.Module):
             return [atoms]+preds[:-1]
         
     def recalibrate(self,new_data):
+        """
+        Update cumulative energy statistics for confidence calculation.
+        
+        Computes and accumulates squared energy errors relative to initial
+        offset prediction, using error-weighted contributions. Used for
+        confidence metric updates.
+        
+        Args:
+            new_data: [atoms, E_dft, F_dft] or [atoms, E_dft, F_dft, S_dft]
+        """
         if len(new_data)==4:
             atoms,E,F,S=new_data
 
@@ -305,6 +489,16 @@ class OTFForceField(nn.Module):
 
 
     def update(self,new_data):
+        """
+        Trigger full retraining cycle with new labeled DFT data.
+        
+        Coordinates recalibration, ensemble updates, and checkpoint saving.
+        The cumulative statistics and step counter are persisted to support
+        restart functionality.
+        
+        Args:
+            new_data: [atoms, E_dft, F_dft] or [atoms, E_dft, F_dft, S_dft]
+        """
         self.recalibrate(new_data)
         if self.FirstForward:
             new_data[1]+=self.E_offset

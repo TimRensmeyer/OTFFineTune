@@ -1,3 +1,27 @@
+"""
+Monte Carlo Markov Chain (MCMC) Optimization for Bayesian Neural Networks
+
+This module implements stochastic gradient Hamiltonian Monte Carlo (SGHMC) with
+adaptive mass matrices for uncertainty-quantified neural network training.
+
+Key Components:
+- StochasticModel: Base class for probabilistic models
+- MCMCOptimizer: Base class for MCMC optimizers
+- GaussianMeanField: Transfer learning prior
+- amsmass: Adaptive mass matrix (AMSGrad-based)
+- SGHMC: Full SGHMC implementation with preheating and burnin
+- CyclicOptimizer: Cyclic learning rate scheduler wrapper
+
+The SGHMC algorithm samples from the Bayesian posterior by:
+1. Computing gradients of negative log-posterior
+2. Adding noise proportional to learning rate and inverse mass
+3. Using momentum-based integration
+4. Resampling momentum at cycle boundaries
+
+At T=1 (default temperature), the algorithm asymptotically samples from
+the true Bayesian posterior.
+"""
+
 import torch
 import torch.nn as nn
 import copy
@@ -13,6 +37,15 @@ import time
 # The data batch is expected to be of the form (X_batch,Y_batch) wher X_batch and Y_batch are lists of input/target samples.
 
 class StochasticModel(abc.ABC,nn.Module):
+    """
+    Abstract base class for probabilistic neural network models.
+    
+    All models using SGHMC should inherit from this class and implement:
+    - evaluate(data): Compute negative log-likelihood on a mini-batch
+    
+    The model parameters are treated as random variables with posterior
+    distribution estimated by SGHMC sampling.
+    """
 
     __metaclass__=abc.ABCMeta
 
@@ -32,6 +65,13 @@ class StochasticModel(abc.ABC,nn.Module):
 # in the run method for better readability
 
 class MCMCOptimizer(abc.ABC):
+    """
+    Abstract base class for MCMC-based optimizers.
+    
+    Implementations should provide:
+    - step(model): Single optimization step
+    - run(nsteps, model): Optimization loop of nsteps steps
+    """
 
     __metaclass__=abc.ABCMeta
 
@@ -72,6 +112,21 @@ class GaussianMeanField(nn.Module):
 #It stops updating after burnin_steps number of steps have occured
     
 class amsmass(nn.Module):
+    """
+    Adaptive Mass Matrix based on AMSGrad algorithm.
+    
+    Computes inverse mass matrix for SGHMC that adapts based on observed
+    gradient magnitudes. Stops updating after burnin_steps to maintain
+    stable mass estimates during equilibration phase.
+    
+    The mass matrix acts as a preconditioning factor that adapts the
+    effective step size for each parameter independently.
+    
+    Args:
+        beta: Exponential moving average coefficient (default 0.999)
+        eps: Small constant for numerical stability
+        burnin_steps: Number of steps before freezing mass matrix
+    """
 
     def __init__(self,beta=0.999,eps=1e-5,burnin_steps=900000):
         super(amsmass,self).__init__()
@@ -139,15 +194,32 @@ class amsmass(nn.Module):
 # if not specified mass^-1 defaults to the amsgrad denominator
 
 class SGHMC(MCMCOptimizer):
-    # Inputs:
+    """
+    Stochastic Gradient Hamiltonian Monte Carlo (SGHMC).
+    
+    Implements full SGHMC with the following features:
+    - Adaptive mass matrix (inverse Hessian approximation)
+    - Preheating: Gradually increase noise during initial phase
+    - Burnin: Deterministic phase to reach high-probability region
+    - Equilibration: At T=1, samples from true Bayesian posterior
+    
+    At each step:
+    1. Compute negative log-posterior gradient
+    2. Update momentum with friction and noise
+    3. Update parameters with momentum-based step
+    
+    Args:
+        log_prior: Log-prior callable that accepts model and scaling factor
+        model: StochasticModel with evaluate() method
+        dataloader: Data loader with sample() and len() methods
+        inv_mass: Adaptive mass matrix (default: amsmass)
+        lr: Learning rate
+        T: Temperature (1.0 = true posterior, >1 = broad distributions)
+        burnin_steps: Iterations before adding noise
+        preheat: Iterations to gradually increase noise
+        debias: Apply Adam-style bias correction to momentum
+    """
 
-    # log_prior: a log_prior class that allows a scaling factor
-    # model: a StochasticModel class that expects input data of the form (X,Y) wher X and Y are both lists.
-    # dataloader: a dataloader class with with
-    #                -a sample method that samples a minibatch (X,Y) as lists
-    #                -a len method that returns the size of the dataset
-    # mass: See above
-    # eps: See above
     def __init__(self,log_prior,model,dataloader,inv_mass = amsmass(),lr=0.001,T=1,burnin_steps=0,preheat=0,debias=True):
         super(SGHMC,self).__init__()
         self.steps=1
@@ -168,12 +240,13 @@ class SGHMC(MCMCOptimizer):
             value=torch.zeros(size=size,device=p.device)
             self.momentum.append(value)
     def zero_momentum(self):
-
+        """Reset momentum to zero (used at cycle boundaries)."""
         with torch.no_grad():       
             for i in range(len(self.momentum)):
                 self.momentum[i]*=0
 
     def change_device(self,device):
+        """Move all buffers to specified device."""
         self.inv_mass.change_device(device)
         self.log_prior.change_device(device)
         self.dataloader.device=device
@@ -181,6 +254,9 @@ class SGHMC(MCMCOptimizer):
             self.momentum[i]=self.momentum[i].to(device)
 
     def est_var(self,model,weighted=False,n_batches=20):
+        """
+        Estimate parameter variance for noise scaling (currently unused).
+        """
         self.Var=[]
         means=[]
 
@@ -225,6 +301,19 @@ class SGHMC(MCMCOptimizer):
                     p.grad=None
 
     def step(self,model,weighted=False,reduce_var=False):
+        """
+        Execute single SGHMC step.
+        
+        Performs:
+        1. Compute negative log-posterior gradient
+        2. Apply adaptive mass preconditioning
+        3. Update momentum with friction and noise
+        4. Update parameters
+        
+        During burnin: no noise (deterministic phase)
+        During preheat: gradually increase noise temperature
+        After preheat: sample at specified temperature
+        """
         batch=self.dataloader.sample()
         if len(batch)==2:
             X_batch,Y_batch=batch
@@ -280,6 +369,14 @@ class SGHMC(MCMCOptimizer):
 
 
     def run(self,nsteps,model,avg_model=None):
+        """
+        Execute nsteps SGHMC steps with optional exponential moving average.
+        
+        Args:
+            nsteps: Number of steps to execute
+            model: Model to optimize
+            avg_model: Optional model to maintain exponential moving average of parameters
+        """
         for i in range(nsteps):
             self.step(model)
             
@@ -297,6 +394,23 @@ class SGHMC(MCMCOptimizer):
         return avg_model
 
 class CyclicOptimizer():
+    """
+    Cyclic Learning Rate Scheduler for SGHMC.
+    
+    Wraps SGHMC with cosine annealing learning rate schedule.
+    Useful for on-the-fly training where each data point triggers
+    one optimization cycle with a fixed learning rate schedule.
+    
+    After each cycle, momentum is reset to improve independence of
+    samples from different retraining cycles.
+    
+    Args:
+        model: Model to optimize
+        log_prior: Log-prior callable
+        dataloader: Data loader
+        cycle_length: Number of steps per cycle
+        max_lr: Maximum learning rate in cosine schedule
+    """
 
     def __init__(self, model,log_prior,dataloader,cycle_length=20, max_lr=0.003):
         model_device=next(iter(model.parameters())).device
@@ -307,12 +421,22 @@ class CyclicOptimizer():
         self.initialized=False
 
     def change_device(self,device):
+        """Move optimizer to specified device."""
         self.optimizer.change_device(device)
 
     def add(self,new_data):
+        """Add new sample to training data."""
         self.optimizer.dataloader.add(new_data)
 
     def run(self,model):
+        """
+        Execute one optimization cycle with cosine annealing.
+        
+        Learning rate follows: lr(t) = 0.5 * max_lr * (1 + cos(πt/T)) + 1e-8
+        where t is the step within the cycle and T is cycle_length.
+        
+        Resets momentum at cycle boundary for independence between cycles.
+        """
         alpha=self.optimizer.alpha
         ds_size=self.optimizer.dataloader.len() 
         self.optimizer.inv_mass=amsmass()

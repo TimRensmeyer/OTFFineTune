@@ -1,3 +1,39 @@
+"""
+ML Force Field GPU Subprocess
+
+This module runs as a separate GPU process and handles on-the-fly force field
+predictions with uncertainty quantification. It orchestrates the full OTF workflow:
+
+1. Initialize ensemble of models across assigned GPUs
+2. Start DFT subprocess (VASP)
+3. Wait for training subprocesses to initialize
+4. Poll for inference requests from main MD process
+5. On request: predict energies/forces with uncertainties using ensemble
+6. If confidence low: signal for DFT calculation and retrain
+7. Return predictions for next MD step
+
+Communication:
+- Reads/writes tmp/atoms.xyz for structure exchange
+- Uses tmp/gpu_status.txt for status synchronization
+- Saves predictions as numpy arrays in tmp/
+
+Entry Point:
+    python MLFFProc.py
+    
+    Configuration (from runconfig.yaml):
+        dev_list: List of GPU device IDs
+        n_models: Number of models in ensemble
+        NNPBuilder: Model type ('SpiceNequIP' or 'MACE')
+        constructor_args: Arguments for model builder
+        CodePath: Path to code repository
+        TargetPath: Working directory for DFT calculations
+
+To adapt the code for other electronic structure methods you can remove
+the lines that launch the VASPProc.py process file. 
+Further, if you chose to pass a keyword via the DFTReqHandler arg in the 
+OTFForceField constructor to use the alternative electronic structure method,
+then make sure that this keyword is passed when the constructor is called here.
+"""
 
 import time
 import subprocess
@@ -24,6 +60,8 @@ if __name__ == "__main__":
     from OTFFineTune.TrainProc import GetTrainStatus
 
     Restart=(GetGPUProcStatus()=="Restart")
+    #You can remove the next two lines if you use a different electronic structure method.
+    #  VASPProc.py is just used as part of the default vasp interface function.
     command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
     os.popen(command)
     SetGPUProcStatus("OTF Force Field Starting Up")
@@ -39,7 +77,7 @@ if __name__ == "__main__":
                         constructor_args=config['constructor_args'],restart=Restart,path=CodePath)
     
     OTFForceField=NNP.OTFForceField(MLFF=MLFF,
-                                    DFTReqHandler='VASPSLURM',
+                                    DFTReqHandler='VASPSLURM',#You may want to change this if you implemented a custom electronic structure inteface
                                     restart=Restart)
     ready=False
     while not ready:

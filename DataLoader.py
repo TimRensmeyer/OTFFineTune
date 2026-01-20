@@ -1,3 +1,23 @@
+"""
+Weighted Data Loaders for MACE Models
+
+This module provides data loading utilities specifically designed for MACE model training
+with importance sampling support. The weighted_dataloader emphasizes newly added samples
+(from on-the-fly calculations) while maintaining statistical consistency.
+
+Key Feature: Importance Sampling
+- Prioritizes recent samples by sampling with replacement from a weighted set
+- Theoretical sampling probability: sp = 1/batch_size
+- Implemented via a set containing all samples once, plus the newest L times
+- samples are weighted to correct for bias introduced by oversampling
+
+The dataloader converts ASE Atoms objects to MACE AtomicData graph representations,
+and manages batching for PyTorch Geometric data loading.
+
+Classes:
+    weighted_dataloader: Batch sampler with importance weighting
+"""
+
 import numpy as np
 import torch
 import ase
@@ -5,6 +25,24 @@ from mace.tools import torch_geometric
 from mace import data
 
 class weighted_dataloader():
+    """
+    Weighted Data Loader for importance-sampled mini-batch training.
+    
+    Implements importance sampling to emphasize newly added training samples
+    while maintaining statistical validity. Converts ASE structures to MACE
+    graph representation and supports weighted sampling.
+    
+    Args:
+        device: PyTorch device
+        atomic_numbers: List of atomic numbers in system
+        geometries: List of MACE AtomicData objects
+        Y_f: List of force targets
+        Y_e: List of energy targets
+        Y_s: List of stress targets
+        bs: Batch size
+        r_max: Interaction cutoff radius
+        pbc: Whether periodic boundary conditions apply
+    """
 
     def __init__(self,device,atomic_numbers,geometries=[],Y_f=[],Y_e=[],Y_s=[],bs=5,r_max=4.0,pbc=True):
         self.geometries=geometries
@@ -21,9 +59,18 @@ class weighted_dataloader():
 
         
     def len(self):
+        """Return current dataset size."""
         return self.size
     
     def add(self,sample):
+        """
+        Add new labeled sample and update dataset.
+        
+        Converts ASE Atoms to MACE graph representation and appends to dataset.
+        
+        Args:
+            sample: (atoms, energy, forces) or (atoms, energy, forces, stress)
+        """
         if len(sample)==3:
             ase_atoms,y_e,y_f=sample
             Stress=False
@@ -47,6 +94,14 @@ class weighted_dataloader():
 
     
     def sample(self):
+        """
+        Sample a mini-batch with optional importance weighting.
+        
+        Returns:
+            - If dataset size <= batch_size: (batch_X, (e_targets, f_targets, s_targets))
+            - Otherwise: (batch_X, (e_targets, f_targets, s_targets), weights)
+              where weights correct for the importance sampling bias
+        """
         #if the batch size is larger than the size of the data set just return the dataset
         device=self.device
         if self.size<=self.bs:
@@ -66,7 +121,7 @@ class weighted_dataloader():
             return (X,(e_t,f_t,s_t))
 
 
-            return (self.geometries,(self.Y_e,self.Y_f,self.Y_s))
+       #     return (self.geometries,(self.Y_e,self.Y_f,self.Y_s))
         else:
             #If the batch size is smaller than the size of the dataset perform importance sampling
             # to prioritize the newly added sample.
@@ -121,7 +176,12 @@ class weighted_dataloader():
                     
 
     def last_added(self):
-        device=self.device
+        """
+        Retrieve the most recently added sample.
+        
+        Returns:
+            (batch_X, (e_targets, f_targets, s_targets)) with single sample batch
+        """
 
         bs=1
         b_ind=self.ind[(self.size-1):self.size]

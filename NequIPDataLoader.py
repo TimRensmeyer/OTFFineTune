@@ -1,3 +1,18 @@
+"""
+Data Loaders for NequIP Models
+
+This module provides data loading utilities specifically for NequIP model training.
+The weighted_dataloader implements importance sampling to emphasize newly added
+on-the-fly samples.
+
+Note: The simple dataloader class is currently no longer used and may be removed 
+in future versions. Use weighted_dataloader for new implementations.
+
+Classes:
+    dataloader: Basic batch sampler (deprecated)
+    weighted_dataloader: Batch sampler with importance weighting
+"""
+
 import numpy as np
 import torch
 import ase
@@ -7,6 +22,14 @@ from nequip.model._build import model_from_config
 from nequip.utils.torch_geometric import Batch
 
 class dataloader():
+    """
+    Basic Data Loader for NequIP models.
+    
+    Note: This class is currently no longer used and may be removed in future versions.
+    Use weighted_dataloader for new code.
+    
+    Converts ASE Atoms to NequIP graph representation with simple random sampling.
+    """
 
     def __init__(self,device,X_pos=[],X_a=[],Y_f=[],Y_e=[],bs=5,r_max=4,pbc=False):
         self.X_pos=X_pos
@@ -80,6 +103,23 @@ class dataloader():
         return ((a,R),(e_t,f_t))
     
 class weighted_dataloader():
+    """
+    Weighted Data Loader for importance-sampled mini-batch training.
+    
+    Implements importance sampling to emphasize newly added training samples
+    while maintaining statistical validity. Converts ASE structures to NequIP
+    graph representation and supports weighted sampling.
+    
+    Args:
+        device: PyTorch device
+        X_pos: List of position graphs (AtomicData)
+        X_a: List of atomic number lists
+        Y_f: List of force targets
+        Y_e: List of energy targets
+        bs: Batch size
+        r_max: Interaction cutoff radius
+        pbc: Whether periodic boundary conditions apply
+    """
 
     def __init__(self,device,X_pos=[],X_a=[],Y_f=[],Y_e=[],bs=5,r_max=4,pbc=False):
         self.X_pos=X_pos

@@ -1,7 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[50]:
+"""
+Template Base Classes for Extensibility
+
+This module provides abstract base classes that can be extended for custom implementations:
+- StochasticModel: Base for probabilistic neural network models
+- MCMCOptimizer: Base for MCMC-based optimization algorithms
+
+These templates define the required interface for new models and optimizers
+to be compatible with the OTF fine-tuning framework.
+
+See MCMC.py for default implementations.
+"""
 
 
 import torch
@@ -16,6 +27,13 @@ from abc import abstractmethod
 # The data batch is expected to be of the form (X_batch,Y_batch) wher X_batch and Y_batch are lists of input/target samples.
 
 class StochasticModel(abc.ABC,nn.Module):
+    """
+    Abstract base class for probabilistic neural network models.
+    
+    Implementations should:
+    - Register learnable parameters as PyTorch parameters
+    - Implement evaluate(data) to compute negative log-likelihood
+    """
 
     __metaclass__=abc.ABCMeta
 
@@ -35,6 +53,13 @@ class StochasticModel(abc.ABC,nn.Module):
 # in the run method for better readability
 
 class MCMCOptimizer(abc.ABC):
+    """
+    Abstract base class for MCMC-based optimizers.
+    
+    Implementations should provide:
+    - step(model): Single optimization step
+    - run(nsteps, model): Optimization loop of nsteps steps
+    """
 
     __metaclass__=abc.ABCMeta
 

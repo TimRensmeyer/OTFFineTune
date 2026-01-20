@@ -1,3 +1,7 @@
+"""This file implements the OTFForceField class. All other classes and functions implement different subfunctionalities of 
+the OTFForceField class. To adapt this repository for an electronic structure software a small modifiction to the OTFForceField
+class is needed and highlighted in the class implementation itself."""
+
 import abc
 from abc import abstractmethod
 import torch
@@ -207,6 +211,13 @@ def Confidence(e_bound,std,n,E,a,b):
     return conf*Z
 
 class OTFForceField(nn.Module):
+    """This is the actual OTFForceField class itself. To adapt this repository for a different electronic structure method,
+    it is required that the DFTReqHandler is set to the custom interface function implemented in Procs.py. 
+    This class is constructed in the MLFF.py file. The argument 'DFTReqHandler' is used to differentiate which 
+    electronic structure interface should be used. You can either chose to change the code here to ignore this argument and
+    always use the desired electronic structure interface or you can add a new keyword and condition to set this interface
+    as the DFTReqHandler and make sure that in MLFFProc.py the corresponding keyword is passed as an argument."""
+    
     def __init__(self,MLFF,DFTReqHandler,E_thresh=ErrorThreshold,conf_thresh=0.95,restart=False):
         super(OTFForceField,self).__init__()
         self.MLFF=MLFF

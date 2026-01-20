@@ -1,3 +1,11 @@
+"""This file implements the functionalities needed to orchestrate the different processes that are running during a
+fine-tuning run such as training processes, inference processes and a process that starts electronic structure
+calculation upon requests. Currently, only a VASP interface exists. However, to add an interface for a different
+electronic structure mode, only a few changes are needed. This interface should mirror the FileIOReqHandlerVASP()
+function in this file. 
+Then two small further changes are needed in the OTFForceField class in NNP.py and MLFFProc.py.
+The exact changes needed are documented in the corresponding files"""
+
 from torch.multiprocessing import Pool
 import subprocess
 import torch
@@ -72,7 +80,10 @@ def ProcLauncher(SLURMFILE=None,PROCFILE=None,Restart=False):
         proc = subprocess.Popen(['python3', PROCFILE])
 
 def FileIOReqHandlerVASP(atoms):
-
+ """This function implements an interface to the VASP DFT software. To adapt this code for other electronic structure codes,
+ a similar interface should be implemented. The requirements are, that it takes an ase atoms structure as input and returns
+ the atoms object as well as the energy, forces, and optionally stresses. All outputs should use kcal/mol as energy units and 
+ Angstrom as length units."""
     # Generating VASP geometry 
     write('POSCAR',atoms,'vasp')
     

@@ -15,7 +15,14 @@ module load cuda
 eval "$(conda shell.bash hook)"
 conda activate MACE_ENV
 conda info --envs
-
+# ============================================================================
+# TODO: Configure VASP module loading for your HPC system
+# Replace the lines below with appropriate VASP module commands for your cluster
+# Check available modules with: module avail VASP
+# Example alternatives:
+#   module load VASP/6.4.1
+#   module load vasp/6.4.1-intel-2021b
+# ============================================================================
 module use --append /path/to/VASP/modulefiles/VASP/
 module load 6.4.1-mpi-ifx-old
 module load VASP 2>&1

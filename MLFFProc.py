@@ -1,3 +1,8 @@
+"""This file is launched as a process to handle calculation requests for the OTF force field. To adapt the code 
+for other electronic structure methods you can remove the lines that launch the VASPProc.py process file. 
+Further, if you chose to pass a keyword via the DFTReqHandler arg in the OTFForceField constructor to use 
+the alternative electronic structure method, then make sure that this keyword is passed when the constructor is 
+called here."""
 
 import time
 import subprocess
@@ -23,7 +28,9 @@ if __name__ == "__main__":
     from OTFFineTune.Procs import SetGPUProcStatus, GetGPUProcStatus,GPUProcComSetUp,SetProcStatus
     from OTFFineTune.TrainProc import GetTrainStatus
 
-    Restart=(GetGPUProcStatus()=="Restart")
+    Restart=(GetGPUProcStatus()=="Restart") 
+   #You can remove the next two lines if you use a different electronic structure method. VASPProc.py is 
+   # just use as part of the default vasp interface function.
     command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
     os.popen(command)
     SetGPUProcStatus("OTF Force Field Starting Up")
@@ -39,7 +46,7 @@ if __name__ == "__main__":
                         constructor_args=config['constructor_args'],restart=Restart,path=CodePath)
     
     OTFForceField=NNP.OTFForceField(MLFF=MLFF,
-                                    DFTReqHandler='VASPSLURM',
+                                    DFTReqHandler='VASPSLURM',   #You may want to change this if you implemented a custom electronic structure inteface
                                     restart=Restart)
     ready=False
     while not ready:

@@ -9,3 +9,8 @@ Future Plans:
 
  Also high on my list is adding force uncertainties as an additional intervention criterion, so that for specific atoms or regions of interest lower uncertainty thresholds can be chosen than for others.
  Further, I expect to add native ONETEP support in the near future as well as a 4th generation neural network potential such as CHGNET to enable finetuning on larger systems and systems with charge transfer.
+
+ Because of dependency conflicts of different foundation models, there is one conda environment files available for that can run this repository for each foundation model.
+ These can be found in the individual tutorial directories, together with details on how to set up and configure this repository to run with VASP on slurm managed hpc clusters.
+
+ It should be fairly straightforward to adapt this repository to work with other electronic structure methods by adding a custom interfarce for the electronic structure method to the Proc.py file. The exact changes needed are documented in this file.

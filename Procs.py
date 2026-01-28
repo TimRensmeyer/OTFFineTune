@@ -72,6 +72,7 @@ def ProcLauncher(SLURMFILE=None,PROCFILE=None,Restart=False):
         proc = subprocess.Popen(['python3', PROCFILE])
 
 def FileIOReqHandler(atoms):
+
     n_current_step = len(os.listdir('Coords'))
 
     # # Pure MACE results for training - debug option
@@ -108,25 +109,32 @@ def FileIOReqHandler(atoms):
     # extracting data from outcar
     DFT_succeeded = True
     if os.path.isfile('OUTCAR'):
-        text=os.popen('cp OUTCAR SimFiles/OUTCAR{}'.format(n_current_step)).read()
-        atoms_out=read('OUTCAR', index=':')[0]
+        try:
+            atoms_out=read('OUTCAR', index=-1)
+            energy=atoms_out.get_potential_energy()*23.0609
+            forces=atoms_out.get_forces()*23.0609
+            text=os.popen('cp OUTCAR SimFiles/OUTCAR{}'.format(n_current_step)).read()
+        except: 
+            DFT_succeeded = False
         os.remove('OUTCAR')
-    elif os.path.isfile('onetep.xyz'):
-        text=os.popen('cp onetep.out SimFiles/onetep{}'.format(n_current_step)).read()
-        atoms_out=read('onetep.xyz')
-        os.remove('onetep.xyz')
+    elif os.path.isfile('onetep.out'):
+        try:
+            atoms_out=read('onetep.out', index=-1, format='onetep-out')
+            energy=atoms_out.get_potential_energy()*23.0609
+            forces=atoms_out.get_forces()*23.0609
+            text=os.popen('cp onetep.out SimFiles/onetep{}'.format(n_current_step)).read()
+        except: 
+            DFT_succeeded = False
+        os.remove('onetep.out')
     else:
         DFT_succeeded = False
 
-    print(text)
-
     if not DFT_succeeded:
-        atoms,energy,forces,stress,e_uncert,f_uncert,s_uncert = FileIOReqHandlerOTF(atoms,IncludeStress=True)
         print('DFT calculation failed at step {}. Working with MLFF prediction instead.'.format(n_current_step))
-        return atoms,energy,forces,stress,'FAILED'
-    
-    energy=atoms_out.get_potential_energy()*23.0609
-    forces=atoms_out.get_forces()*23.0609
+        return 'DFT FAILED'
+    else:
+        print(text)
+
     try:
         [xx,yy,zz,yz,zx,xy]=list(atoms_out.get_stress())
         stress=np.array([[xx,xy,zx],
@@ -179,11 +187,15 @@ class OTFReqHandler():
 
 def OTFSlurmBuilder(SLURMFILE):
 
-   # proc = os.popen('sbatch '+ SLURMFILE) #testchange
-    out=os.popen('sbatch '+ SLURMFILE).read()
-    out=out.split(' ')[-1]
-    out=out[:-1]
-    print("Job Id:",out)
+    if SLURMFILE == 'proc':
+        OTF_dir = os.path.dirname(os.path.realpath(__file__))
+        out = subprocess.Popen(['python3', '-u', OTF_dir+'/MLFFProc.py'])
+        out = 0
+    else:
+        out=os.popen('sbatch '+ SLURMFILE).read()
+        out=out.split(' ')[-1]
+        out=out[:-1]
+        print("Job Id:",out)
     req_handler=OTFReqHandler(out)
 
     return req_handler
@@ -196,6 +208,7 @@ def SlurmStartup(
     SetUp()
         
     if restart:
+        print('Doing restart')
         SetGPUProcStatus("Restart")
 
     OTFReqHandler=OTFBUILDER(GPUSLURMFILE)

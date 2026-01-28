@@ -38,8 +38,8 @@ class weighted_dataloader():
 
         self.size+=1
 
-        configs=data.utils.config_from_atoms_list([ase_atoms])
-        geometry=data.AtomicData.from_config(configs[0], z_table=self.z_table, cutoff=self.r_max)
+        config=data.utils.config_from_atoms(ase_atoms)
+        geometry=data.AtomicData.from_config(config, z_table=self.z_table, cutoff=self.r_max)
         self.geometries.append(geometry)
         self.Y_f.append(y_f)
         self.Y_e.append(y_e)

@@ -589,6 +589,7 @@ class OTFForceField(nn.Module):
             self.n=OTFParams[1]
             self.E_offset=OTFParams[2]
             self.steps=OTFParams[3]
+            print(self.steps)
             self.FirstForward=False
             if self.F_Thresh!=None:
                 self.E_F=OTFParams[4]
@@ -597,6 +598,7 @@ class OTFForceField(nn.Module):
 
 
     def forward(self,atoms,log=True):
+        print('Step #{}'.format(self.steps))
         self.steps+=1
         if isinstance(atoms, str):
             atoms=ase.io.read(atoms)
@@ -634,11 +636,15 @@ class OTFForceField(nn.Module):
             t0= time.time()
             dft_out=self.DFTReqHandler(atoms)
             t1=time.time()
+            try:
+                if dft_out == 'DFT FAILED' or dft_out == 'SKIP DFT':
+                    return [atoms]+preds[:-2]
+            except:
+                pass
+
             print("DFT Calculation took:",t1-t0,"seconds")
             
-            if dft_out[-1].any() == 'FAILED':
-                atoms,E,F,S,tmp=dft_out
-            elif len(dft_out)==4:
+            if len(dft_out)==4:
                 atoms,E,F,S=dft_out
                 E+=self.E_offset
                 self.update([atoms,E,F,S],[conf,F_conf])
@@ -653,6 +659,7 @@ class OTFForceField(nn.Module):
             self.FirstForward=False
             if log:
                 DFT_pred=(E,F)
+                print('Saving DFT prediction as {}'.format(self.steps))
                 torch.save(DFT_pred,'DFT_preds/{}'.format(self.steps))
             if len(dft_out)==4:
                 return (atoms,E,F,S,E*0,F*0,S*0)
@@ -660,7 +667,6 @@ class OTFForceField(nn.Module):
                 return (atoms,E,F,E*0,F*0)
         
         else:
-            
             return [atoms]+preds[:-2]
         
     def recalibrate(self,new_data,confidences):

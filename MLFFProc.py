@@ -66,6 +66,7 @@ if __name__ == "__main__":
         time.sleep(0.1)
 
     SetGPUProcStatus("OTF Force Field Ready")
+        
     while not done:
         status=GetGPUProcStatus()
         if status =='OTF Request':

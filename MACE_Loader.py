@@ -29,7 +29,10 @@ class Network(nn.Module):
         super(Network,self).__init__()
         if 'ModelPath' in config:
             print('Loading provided model {}'.format(os.path.basename(config['ModelPath'])))
-            model = mace_mp(model=config['ModelPath'], default_dtype="float32", device='cpu', return_raw_model=True)
+            if 'ModelHead' in config:
+                model = mace_mp(model=config['ModelPath'], default_dtype="float32", device='cpu', return_raw_model=True, head=config['ModelHead'])
+            else:
+                model = mace_mp(model=config['ModelPath'], default_dtype="float32", device='cpu', return_raw_model=True)
         else:
             model = mace_mp(model="medium", dispersion=False, default_dtype="float32", device='cpu',return_raw_model=True)
         model.float()
@@ -46,7 +49,9 @@ class Network(nn.Module):
        # time0=time.time()
         #In a normal forward call the Input will be a list of ASE Atoms objects
         if isinstance(atoms_list, list):
-            configs=data.utils.config_from_atoms_list(atoms_list)
+            configs = []
+            for atoms in atoms_list:
+                configs.append(data.utils.config_from_atoms(atoms))
             batch=[data.AtomicData.from_config(cfg, z_table=self.z_table, cutoff=self.model.r_max.item())
                 for cfg in configs]
             dl=torch_geometric.dataloader.DataLoader(

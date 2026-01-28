@@ -33,7 +33,7 @@ if __name__ == "__main__":
     while not done:
         status=GetProcStatus()
         if status =='DFT Request' and proc_id==0:
-            print(trgpath)
+        # print(trgpath)
             SetProcStatus('DFT Calculating')
             print(run_command)
             # Run the command and wait for it to finish

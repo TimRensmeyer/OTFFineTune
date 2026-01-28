@@ -261,8 +261,7 @@ class SGHMC(MCMCOptimizer):
                         temp=self.T
                         means=torch.zeros(size=q.size(),device=q.device)
                         std=torch.sqrt(2*(1/self.lr)*(1/im)*(1/dataset_size))*temp
-
-                            
+                        
                         noise=torch.normal(mean=means,std=std)
                         new_p=p-self.alpha*q.grad - self.alpha*p + self.alpha*noise
                                  

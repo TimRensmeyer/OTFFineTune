@@ -108,26 +108,29 @@ def FileIOReqHandler(atoms):
 
     # extracting data from outcar
     DFT_succeeded = True
+
+    out_format = ''
     if os.path.isfile('OUTCAR'):
-        try:
-            atoms_out=read('OUTCAR', index=-1)
-            energy=atoms_out.get_potential_energy()*23.0609
-            forces=atoms_out.get_forces()*23.0609
-            text=os.popen('cp OUTCAR SimFiles/OUTCAR{}'.format(n_current_step)).read()
-        except: 
-            DFT_succeeded = False
-        os.remove('OUTCAR')
+        out_file = 'OUTCAR'
+        out_format = 'vasp-out'
     elif os.path.isfile('onetep.out'):
-        try:
-            atoms_out=read('onetep.out', index=-1, format='onetep-out')
-            energy=atoms_out.get_potential_energy()*23.0609
-            forces=atoms_out.get_forces()*23.0609
-            text=os.popen('cp onetep.out SimFiles/onetep{}'.format(n_current_step)).read()
-        except: 
-            DFT_succeeded = False
-        os.remove('onetep.out')
+        out_file = 'onetep.out'
+        out_format = 'onetep-out'
+    elif os.path.isfile('espresso.pwo'):
+        out_file = 'espresso.pwo'
+        out_format = 'espresso-out'
     else:
         DFT_succeeded = False
+    
+
+    try:
+        atoms_out=read(out_file, index=-1, format=out_format)
+        energy=atoms_out.get_potential_energy()*23.0609
+        forces=atoms_out.get_forces()*23.0609
+        text=os.popen('cp {} SimFiles/{}{}'.format(out_file,out_file,n_current_step)).read()
+    except: 
+        DFT_succeeded = False
+    os.remove(out_file)
 
     if not DFT_succeeded:
         print('DFT calculation failed at step {}. Working with MLFF prediction instead.'.format(n_current_step))

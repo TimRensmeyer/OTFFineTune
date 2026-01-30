@@ -27,6 +27,8 @@ if __name__ == "__main__":
         run_command = ["srun","--chdir="+trgpath,'vasp_std'] # Change TargetDir to Run Directory.
     elif DFTReqHandler == 'ONETEPSLURM':
         run_command=['python3','onetep.py']
+    elif DFTReqHandler == 'ASE':
+        run_command=['python3','ase_input.py']
 
 
     done=False

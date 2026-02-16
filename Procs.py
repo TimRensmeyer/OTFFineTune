@@ -120,7 +120,7 @@ def FileIOReqHandlerVASP(atoms):
     energy units and Angstrom as length units.
     """
 
-    
+    write('POSCAR',atoms,'vasp')
     # Forwarding Request to VASPProc
     SetProcStatus('DFT Request')
 
@@ -159,6 +159,8 @@ def FileIOReqHandlerOTF(atoms,IncludeStress=False):
         - If IncludeStress: (atoms, energy, forces, stress, e_uncert, f_uncert, s_uncert)
         - Otherwise: (atoms, energy, forces, e_uncert, f_uncert)
     """
+
+    # Generating VASP geometry
     write('tmp/atoms.xyz', atoms)
 
     # Forwarding Request to VASPProc
@@ -188,17 +190,15 @@ def VASPSLURMBuilder(SLURMFILE):
     Note: This function is currently no longer used and may be removed in future versions.
     Consider using FileIOReqHandlerVASP directly.
     """
-
-    return FileIOReqHandlerVASP()
+    os.popen('sbatch '+ SLURMFILE)
+    return FileIOReqHandlerVASP
 
 def OTFSlurmBuilder(SLURMFILE):
     """
     Build OTF GPU process launcher with SLURM job submission.
-    
-    Note: This function is currently no longer used and may be removed in future versions.
-    Consider using ProcLauncher directly.
-    """
 
+    """
+    os.popen('sbatch '+ SLURMFILE)
 
     return FileIOReqHandlerOTF
 

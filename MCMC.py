@@ -412,10 +412,11 @@ class CyclicOptimizer():
         max_lr: Maximum learning rate in cosine schedule
     """
 
-    def __init__(self, model,log_prior,dataloader,cycle_length=20, max_lr=0.003):
+    def __init__(self, model,log_prior,dataloader,cycle_length=20, max_lr=0.003,
+                 burnin_steps=400,preheat=100,debias=False):
         model_device=next(iter(model.parameters())).device
         
-        self.optimizer=SGHMC(log_prior,model,dataloader,burnin_steps=400,preheat=100,debias=False)
+        self.optimizer=SGHMC(log_prior,model,dataloader,burnin_steps=burnin_steps,preheat=preheat,debias=debias)
         self.cycle_length=cycle_length
         self.max_learning_rate=max_lr
         self.initialized=False

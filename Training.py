@@ -70,7 +70,11 @@ if __name__ == "__main__":
 
         #(target_dev,pid,n_models,builder_func)=sys.argv[1:5]
     (pid,target_dev,n_models,builder_func,init_type,path)=sys.argv[1:7]
-    target_dev=torch.device("cuda:{}".format(target_dev))
+    #for build testing, target_dev will be cpu
+    if target_dev=='cpu':
+        target_dev=torch.device('cpu')
+    else:
+        target_dev=torch.device("cuda:{}".format(target_dev))
     pid=int(pid)
     n_models=int(n_models)
     sys.path.insert(0, path)

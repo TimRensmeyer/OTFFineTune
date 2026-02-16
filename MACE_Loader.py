@@ -165,6 +165,7 @@ class smodel(nn.Module):
         exponent_e=-0.5*(energy-dft_energy)**2/energy_uncert**2
         exponent_f=-0.5*(forces-dft_force)**2/force_uncert**2
         exponent_s=-0.5*(stress-dft_stress)**2/stress_uncert**2
+        print("Force:",forces,dft_force)
         print(torch.mean(torch.abs((energy-dft_energy))).detach().cpu().item(),
               torch.mean(torch.abs((forces-dft_force))).detach().cpu().item(),
               torch.mean(torch.abs((stress-dft_stress))).detach().cpu().item(),
@@ -202,7 +203,7 @@ class MACE_Wrapper(nn.Module):
     Args:
         args: [prior_strength] - strength of Gaussian prior on parameters
     """
-    def __init__(self,args):
+    def __init__(self,args,testing=False):
         super(MACE_Wrapper,self).__init__()
         prior_strength=args[0]
         self.model=smodel()
@@ -215,16 +216,25 @@ class MACE_Wrapper(nn.Module):
         self.log_prior=GaussianMeanField(mean,std)
         atomic_numbers=self.model.net.model.atomic_numbers
         cutoff=self.model.net.model.r_max
-
+        if testing:
+            bs=2
+        else:
+            bs=5
         dataloader=weighted_dataloader(atomic_numbers=atomic_numbers,
-                                       bs=5,
+                                       bs=bs,
                                        device=torch.device("cpu"),
                                        r_max=cutoff.cpu().item())
-        
-        self.optimizer=CyclicOptimizer(self.model,self.log_prior,
+        if not testing:
+            self.optimizer=CyclicOptimizer(self.model,self.log_prior,
                                        dataloader=dataloader,
                                        cycle_length=2000,
                                          max_lr=0.001)
+        else:
+            self.optimizer=CyclicOptimizer(self.model,self.log_prior,
+                                       dataloader=dataloader,
+                                       cycle_length=2,
+                                         max_lr=0.001,
+                                         burnin_steps=0,preheat=0)
         
     def predict(self,ase_atoms):
         """Generate single prediction with uncertainties in eV/Å units."""
@@ -241,7 +251,6 @@ class MACE_Wrapper(nn.Module):
         self.optimizer.add(new_data)
         self.model=self.optimizer.run(self.model)
 
-def MACE_Builder(args):
+def MACE_Builder(args,testing=False):
     """Factory function to create MACE_Wrapper instance."""
-    return MACE_Wrapper(args)
-
+    return MACE_Wrapper(args,testing=testing)

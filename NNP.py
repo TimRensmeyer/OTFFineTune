@@ -189,7 +189,7 @@ class EnsembleFF(nn.Module):
         path: Code repository path
     """
      
-    def __init__(self, device_list,n_models, constructor,constructor_args,restart=False,path=''):
+    def __init__(self, device_list,n_models, constructor,constructor_args,restart=False,path='',testing=False):
         self.model_list=[]
         self.dev_models=[[] for dev in device_list]
         if constructor=='SpiceNequIP':
@@ -209,7 +209,12 @@ class EnsembleFF(nn.Module):
         self.dev_models=[models for models in self.dev_models if models!=[]]
 
         self.device_list=device_list
-        pred_dev=torch.device("cuda:{}".format(device_list[0]))
+        # For build testing, target_dev will be cpu to enable testing on login nodes without gpu access. 
+        # In this case we set pred_dev to cpu as well.
+        if testing:
+            pred_dev=torch.device('cpu')
+        else:
+            pred_dev=torch.device("cuda:{}".format(device_list[0]))
         self.pred_dev=pred_dev
         self.model_list=[m.to(pred_dev) for m in self.model_list]
         self.nprocs=len(self.dev_models)
@@ -229,9 +234,12 @@ class EnsembleFF(nn.Module):
             model_count=len(self.dev_models[proc_number]) 
             SetTrainProcStatus(proc_number,'Starting Up')         
             OTF_dir = os.path.dirname(os.path.realpath(__file__))
-            command=["python3","-u",OTF_dir+"/Training.py",'{}'.format(proc_number),
+            if not testing:
+                command=["python3","-u",OTF_dir+"/Training.py",'{}'.format(proc_number),
                        '{}'.format(dev),'{}'.format(n_models),constructor,init_type,self.path] +arg_list
-
+            else:
+                command=["python3","-u",OTF_dir+"/Tests/TestTraining.py",'{}'.format(proc_number),
+                       '{}'.format('cpu'),'{}'.format(n_models),constructor,init_type,self.path] +arg_list
             subprocess.Popen(command,stdout=open("tmp/training{}.log".format(proc_number), "w"))
         if restart:
             #loading model states
@@ -367,6 +375,9 @@ class OTFForceField(nn.Module):
         self.MLFF=MLFF
         if DFTReqHandler=='VASPSLURM':
             self.DFTReqHandler=FileIOReqHandlerVASP
+        elif DFTReqHandler=='Mock':
+            from Tests.Utils import MockDFTReqHandler
+            self.DFTReqHandler=MockDFTReqHandler
         else:
             self.DFTReqHandler=DFTReqHandler
         self.E_thresh=E_thresh

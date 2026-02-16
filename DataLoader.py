@@ -182,7 +182,7 @@ class weighted_dataloader():
         Returns:
             (batch_X, (e_targets, f_targets, s_targets)) with single sample batch
         """
-
+        device=self.device        
         bs=1
         b_ind=self.ind[(self.size-1):self.size]
         batch=[self.geometries[ind] for ind in b_ind]

@@ -1,1 +1,4 @@
 __pycache__/
+Tests/__pycache__/
+Tests/Unittests/__pycache__/
+Tests/Integrationtests/__pycache__/

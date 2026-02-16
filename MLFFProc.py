@@ -57,12 +57,36 @@ if __name__ == "__main__":
     sys.path.insert(0, CodePath)
 
     from OTFFineTune.Procs import SetGPUProcStatus, GetGPUProcStatus,GPUProcComSetUp,SetProcStatus
-    from OTFFineTune.TrainProc import GetTrainStatus
+    from OTFFineTune.TrainProc import GetTrainStatus, SetTrainProcStatus
 
     Restart=(GetGPUProcStatus()=="Restart")
-    #You can remove the next two lines if you use a different electronic structure method.
+
+    #Check if the file is run inside the OTFFineTune/Tests/IntegrationTests folder.
+    #  If so, launc the MockVASPProc instead of the actual VASPProc.
+    #  This allows to run integration tests without access to VASP.
+    # Further, in this case the ensemble force field will be launched with 
+    # the testing=True flag which will limit the optimization to two steps
+    # per optimization cycle and thus allow the test to run in a reasonable time frame.
+
+    testing=False
+    global_path=os.path.dirname(os.path.realpath(__file__))
+    print(TargetPath)
+    if 'OTFFineTune/Tests/IntegrationTest' in TargetPath:
+        #For some reason, this does not work when the test is launched from the OTFFineTune/Tests/IntegrationTest folder
+        testing=True
+        print("Running in testing mode. Mock VASP process will be launched "
+        "and optimization will be limited to two steps per cycle.")
+    else:
+        print("Running in normal mode. Actual VASP process will be launched "
+        "and optimization will proceed without step limit.")
+    #You can remove the next four lines if you use a different electronic structure method.
     #  VASPProc.py is just used as part of the default vasp interface function.
-    command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
+    
+    if not testing:
+        command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
+    else:
+        command="python3 "+CodePath+"OTFFineTune/Tests/MockVASPProc.py"+ " " +CodePath +" "+TargetPath
+
     os.popen(command)
     SetGPUProcStatus("OTF Force Field Starting Up")
     done=False
@@ -74,11 +98,15 @@ if __name__ == "__main__":
     MLFF=NNP.EnsembleFF(device_list=config['dev_list'],
                         n_models=config['n_models'], 
                         constructor=config['NNPBuilder'],
-                        constructor_args=config['constructor_args'],restart=Restart,path=CodePath)
-    
-    OTFForceField=NNP.OTFForceField(MLFF=MLFF,
-                                    DFTReqHandler='VASPSLURM',#You may want to change this if you implemented a custom electronic structure inteface
-                                    restart=Restart)
+                        constructor_args=config['constructor_args'],restart=Restart,path=CodePath,testing=testing)
+    if not testing:
+        OTFForceField=NNP.OTFForceField(MLFF=MLFF,
+                                        DFTReqHandler='VASPSLURM',#You may want to change this if you implemented a custom electronic structure inteface
+                                        restart=Restart)
+    else:
+        OTFForceField=NNP.OTFForceField(MLFF=MLFF,
+                                        DFTReqHandler='Mock',#Use the mock DFT request handler for testing
+                                        restart=Restart)
     ready=False
     while not ready:
         status=GetTrainStatus(n_procs)
@@ -111,6 +139,8 @@ if __name__ == "__main__":
 
         elif status=='Shutdown':
             SetProcStatus(status)
+            for i in range(n_procs):
+                SetTrainProcStatus(i,'Shutdown')
             done=True
             break
         else:

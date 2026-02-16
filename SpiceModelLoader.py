@@ -15,7 +15,9 @@ Key Features:
 - Trainable uncertainty estimates via neural network heads
 - Gaussian negative log-likelihood loss for Bayesian sampling
 """
-
+import shutup
+shutup.please()
+import os
 import nequip
 from nequip.utils.config import Config
 import torch
@@ -28,8 +30,7 @@ from nequip.utils.torch_geometric import Batch
 import copy
 import yaml
 import sys
-import shutup
-shutup.please()
+
 with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
@@ -43,7 +44,9 @@ from OTFFineTune.MCMC import GaussianMeanField,CyclicOptimizer
 
 conf=Config()
 conf=conf.from_file(CodePath+'OTFFineTune/config.yaml')
+
 model=model_from_config(conf,initialize=True).model
+
 base=nn.Sequential(*[model.func[i] for i in range(len(model.func)-4)])
 
 class Network(nn.Module):
@@ -224,7 +227,7 @@ def NequIP_Loader():
     Returns:
         model: Initialized probabilistic model with uncertainty quantification
     """
-
+    module=Network(dict_size=100)
     SpiceDict=torch.load(CodePath +'OTFFineTune/Dicts/SpiceDict',map_location=torch.device('cpu'))
     keys=SpiceDict.keys()
     dict={}
@@ -255,7 +258,7 @@ class NequIP_Wrapper(NNP):
     Args:
         args: [prior_strength] - strength of Gaussian prior on parameters
     """
-    def __init__(self,args):
+    def __init__(self,args,testing=False):
         super(NequIP_Wrapper,self).__init__()
         prior_strength=args[0]
         self.model=NequIP_Loader()
@@ -273,9 +276,18 @@ class NequIP_Wrapper(NNP):
             i+=1
 
         self.log_prior=GaussianMeanField(mean,std)
-        dataloader=weighted_dataloader(bs=5,device=torch.device("cpu"))
-        self.optimizer=CyclicOptimizer(self.model,self.log_prior,
-                                       dataloader=dataloader, max_lr=0.0001,cycle_length=2000)
+        if testing:
+            bs=2
+        else:
+            bs=5
+        dataloader=weighted_dataloader(bs=bs,device=torch.device("cpu"))
+        if not testing:
+            self.optimizer=CyclicOptimizer(self.model,self.log_prior,
+                                        dataloader=dataloader, max_lr=0.0001,cycle_length=2000)
+        else:
+            self.optimizer=CyclicOptimizer(self.model,self.log_prior,
+                                        dataloader=dataloader, max_lr=0.0001,cycle_length=2,
+                                        burnin_steps=0,preheat=0)
 
     def predict(self,ase_atoms):
         """Generate single prediction with uncertainties from ASE Atoms object."""
@@ -295,6 +307,6 @@ class NequIP_Wrapper(NNP):
         self.optimizer.add(new_data)
         self.model=self.optimizer.run(self.model)
 
-def NequIP_Builder(args):
+def NequIP_Builder(args,testing=False):
     """Factory function to create NequIP_Wrapper instance."""
-    return NequIP_Wrapper(args)
+    return NequIP_Wrapper(args,testing=testing)

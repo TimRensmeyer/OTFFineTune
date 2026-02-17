@@ -26,8 +26,8 @@ CodePath=config['CodePath']
 ErrorThreshold=config['ErrorThreshold']
 
 
-from DataLoader import weighted_dataloader
-from MCMC import CyclicOptimizer, GaussianMeanField
+from ..data.DataLoader import weighted_dataloader
+from ..core.MCMC import CyclicOptimizer, GaussianMeanField
 
 def init_weights_zeros(m):
     """Initialize network weights to zero."""

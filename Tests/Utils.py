@@ -10,6 +10,10 @@
 import numpy as np
 import yaml
 import sys
+import os 
+file_path=os.path.dirname(os.path.realpath(__file__))
+parent_path=os.path.dirname(file_path)
+sys.path.insert(0, parent_path)
 sys.path.append("..")
 
 
@@ -36,7 +40,7 @@ def test_potential_model(atoms):
 
 def MockDFTReqHandler(atoms):
     import time
-    from Procs import SetProcStatus, GetProcStatus
+    from src.OTFFineTune.procs.comm.Procs import SetProcStatus, GetProcStatus
 
     """Mock DFT request handler that returns fixed energy and forces for testing.
     Follows the interface of the VASP DFT request handler used in the Procs module.

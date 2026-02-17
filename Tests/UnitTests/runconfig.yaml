@@ -5,7 +5,7 @@ NNPResourceManager: SLURM
 FFType: Ensemble
 n_models: 3
 dev_list: [0,1,2] 
-NNPBuilder: SpiceNequIP
+NNPBuilder: MACE
 constructor_args: [0.5]
 DFTCode: vasp_std
 DFTProcSubmitFile: VASPProc_Submit

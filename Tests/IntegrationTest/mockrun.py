@@ -26,7 +26,7 @@ for fn in os.listdir():
     if fn[-4:]=='.out':
         os.remove(fn)
 
-from OTFFineTune.Procs import FileIOReqHandlerOTF, SetUp, GetProcStatus, GetGPUProcStatus
+from OTFFineTune.src.OTFFineTune.procs.comm.Procs import FileIOReqHandlerOTF, SetUp, GetProcStatus, GetGPUProcStatus
 #instead of calling the OTFSlurmBuilder, we directly instantiate the request handler
 # and launch the MLFFProc.py manually without SLURM for testing purposes. 
 # This allows us to run the test on a single machine without requiring a SLURM cluster.
@@ -35,7 +35,7 @@ if 'tmp' not in os.listdir('./'):
     SetUp()
 
 
-os.popen('python3 -u ' + os.path.join(runconfig['CodePath'],'OTFFineTune/MLFFProc.py >logs.txt'))
+os.popen('python3 -u ' + os.path.join(runconfig['CodePath'],'OTFFineTune/src/OTFFineTune/procs/MLFFProc.py >logs.txt'))
 
 #Wait for the OTF process to be ready before proceeding with the test
 launched=False
@@ -143,7 +143,7 @@ dyn.run(5)
 # Run simulation
 #dyn.run(n_steps)
  #shutdown the OTF process after the simulation is done
-from OTFFineTune.Procs import SetGPUProcStatus
+from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SetGPUProcStatus
 
 SetGPUProcStatus('Shutdown')
 

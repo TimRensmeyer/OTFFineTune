@@ -31,14 +31,14 @@ if __name__ == "__main__":
     n_models=int(n_models)
     sys.path.insert(0, path)
 
-    from OTFFineTune.TrainProc import SetTrainProcStatus,GetTrainProcStatus
+    from OTFFineTune.src.OTFFineTune.procs.comm.TrainProc import SetTrainProcStatus,GetTrainProcStatus
     builder_args=[float(arg) for arg in sys.argv[7:]]
     models=[]
     if init_type=='R':
         if builder_func=='SpiceNequIP':
-            from OTFFineTune.SpiceModelLoader import NequIP_Builder
+            from OTFFineTune.src.OTFFineTune.models.SpiceModelLoader import NequIP_Builder
         elif builder_func=='MACE':
-            from OTFFineTune.MACE_Loader import MACE_Builder
+            from OTFFineTune.src.OTFFineTune.models.MACE_Loader import MACE_Builder
         for i in range(n_models):
             time.sleep(0.1)  #simulate load time          
 
@@ -46,11 +46,11 @@ if __name__ == "__main__":
 
     
         if builder_func=='SpiceNequIP':
-            from OTFFineTune.SpiceModelLoader import NequIP_Builder
+            from OTFFineTune.src.OTFFineTune.models.SpiceModelLoader import NequIP_Builder
             for i in range(n_models):
                 time.sleep(0.1)  #simulate build time
         elif builder_func=='MACE':
-            from OTFFineTune.MACE_Loader import MACE_Builder
+            from OTFFineTune.src.OTFFineTune.models.MACE_Loader import MACE_Builder
             for i in range(n_models):
                 time.sleep(0.1)  #simulate build time
 

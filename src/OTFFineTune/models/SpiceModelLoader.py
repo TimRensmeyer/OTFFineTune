@@ -39,7 +39,7 @@ ErrorThreshold=config['ErrorThreshold']
 ErrorThreshold
 sys.path.insert(0, CodePath)
 
-from OTFFineTune.MCMC import GaussianMeanField,CyclicOptimizer
+from ..core.MCMC import GaussianMeanField,CyclicOptimizer
 
 
 conf=Config()
@@ -114,7 +114,7 @@ class Network(nn.Module):
         F=torch.autograd.grad(E_list,diction['pos'],retain_graph=True,create_graph=True)
         return E_mol.unsqueeze(1),-torch.cat(F),[std_e_mol.unsqueeze(1),std_f.squeeze(-1)]
 
-from MCMC import StochasticModel
+from ..core.MCMC import StochasticModel
 class model(StochasticModel):
     """
     Probabilistic model wrapper for the Network class above.
@@ -243,8 +243,8 @@ def NequIP_Loader():
 
     return copy.deepcopy(m)
 
-from OTFFineTune.NNP import NNP
-from OTFFineTune.NequIPDataLoader import weighted_dataloader
+from ..core.NNP import NNP
+from ..data.NequIPDataLoader import weighted_dataloader
 class NequIP_Wrapper(NNP):
     """
     Complete training wrapper for SPICE potential with on-the-fly fine-tuning

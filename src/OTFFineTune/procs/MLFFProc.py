@@ -38,7 +38,7 @@ then make sure that this keyword is passed when the constructor is called here.
 import time
 import subprocess
 import os
-import NNP
+
 import ase
 import yaml
 import numpy as np
@@ -55,9 +55,12 @@ if __name__ == "__main__":
     CodePath=config['CodePath']
     TargetPath=config['TargetPath']
     sys.path.insert(0, CodePath)
+    file_path=os.path.dirname(os.path.realpath(__file__))
+    sys.path.insert(0, file_path)
 
-    from OTFFineTune.Procs import SetGPUProcStatus, GetGPUProcStatus,GPUProcComSetUp,SetProcStatus
-    from OTFFineTune.TrainProc import GetTrainStatus, SetTrainProcStatus
+    import OTFFineTune.src.OTFFineTune.core.NNP as NNP
+    from comm.Procs import SetGPUProcStatus, GetGPUProcStatus,GPUProcComSetUp,SetProcStatus
+    from comm.TrainProc import GetTrainStatus, SetTrainProcStatus
 
     Restart=(GetGPUProcStatus()=="Restart")
 
@@ -82,8 +85,11 @@ if __name__ == "__main__":
     #You can remove the next four lines if you use a different electronic structure method.
     #  VASPProc.py is just used as part of the default vasp interface function.
     
+    #VASPProc.py is located in the same directory as this file, so the path is constructed accordingly.
+    proc_path=os.path.dirname(os.path.realpath(__file__))
     if not testing:
-        command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
+        command="python3 "+proc_path+"/VASPProc.py"+ " " +CodePath +" "+TargetPath
+        #command="python3 "+CodePath+"OTFFineTune/src/OTFFineTune/procs/VASPProc.py"+ " " +CodePath +" "+TargetPath
     else:
         command="python3 "+CodePath+"OTFFineTune/Tests/MockVASPProc.py"+ " " +CodePath +" "+TargetPath
 

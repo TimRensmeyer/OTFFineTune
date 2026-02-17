@@ -35,11 +35,11 @@ with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 ErrorThreshold=config['ErrorThreshold']
+CodePath=config['CodePath']
 
-
-from TrainProc import TrainProcComSetUp,SetTrainRequest,GetTrainStatus,SetTrainProcStatus
-from LogPriors import GaussianMeanField
-from MCMC import CyclicOptimizer
+from ..procs.comm.TrainProc import TrainProcComSetUp,SetTrainRequest,GetTrainStatus,SetTrainProcStatus
+from .LogPriors import GaussianMeanField
+from .MCMC import CyclicOptimizer
 import subprocess
 
 
@@ -193,10 +193,10 @@ class EnsembleFF(nn.Module):
         self.model_list=[]
         self.dev_models=[[] for dev in device_list]
         if constructor=='SpiceNequIP':
-            from SpiceModelLoader import NequIP_Loader,NequIP_Wrapper,NequIP_Builder
+            from ..models.SpiceModelLoader import NequIP_Loader,NequIP_Wrapper,NequIP_Builder
             builder=NequIP_Builder
         elif constructor=='MACE':
-            from MACE_Loader import MACE_Builder
+            from ..models.MACE_Loader import MACE_Builder
             builder=MACE_Builder
         else:
             print('Error: Model constructor {} not recognized'.format(constructor))
@@ -233,12 +233,14 @@ class EnsembleFF(nn.Module):
 
             model_count=len(self.dev_models[proc_number]) 
             SetTrainProcStatus(proc_number,'Starting Up')         
-            OTF_dir = os.path.dirname(os.path.realpath(__file__))
+            file_dir = os.path.dirname(os.path.realpath(__file__))
+            #OTF_dir is parent directory of the current file
+            OTF_dir = os.path.dirname(file_dir)
             if not testing:
-                command=["python3","-u",OTF_dir+"/Training.py",'{}'.format(proc_number),
+                command=["python3","-u",OTF_dir+"/procs/Training.py",'{}'.format(proc_number),
                        '{}'.format(dev),'{}'.format(n_models),constructor,init_type,self.path] +arg_list
             else:
-                command=["python3","-u",OTF_dir+"/Tests/TestTraining.py",'{}'.format(proc_number),
+                command=["python3","-u",CodePath+"OTFFineTune/Tests/TestTraining.py",'{}'.format(proc_number),
                        '{}'.format('cpu'),'{}'.format(n_models),constructor,init_type,self.path] +arg_list
             subprocess.Popen(command,stdout=open("tmp/training{}.log".format(proc_number), "w"))
         if restart:
@@ -304,7 +306,7 @@ class EnsembleFF(nn.Module):
                 self.model_list[i]=model
                 i+=1
                 
-from Procs import FileIOReqHandlerVASP
+from ..procs.comm.Procs import FileIOReqHandlerVASP
 import ase
 import scipy
 
@@ -376,7 +378,7 @@ class OTFForceField(nn.Module):
         if DFTReqHandler=='VASPSLURM':
             self.DFTReqHandler=FileIOReqHandlerVASP
         elif DFTReqHandler=='Mock':
-            from Tests.Utils import MockDFTReqHandler
+            from ....Tests.Utils import MockDFTReqHandler
             self.DFTReqHandler=MockDFTReqHandler
         else:
             self.DFTReqHandler=DFTReqHandler

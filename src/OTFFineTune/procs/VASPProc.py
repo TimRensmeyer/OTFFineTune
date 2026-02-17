@@ -23,7 +23,7 @@ Entry Point:
         target_path: Working directory for VASP calculations
 """
 
-from Procs import SetProcStatus, GetProcStatus
+
 import time
 import subprocess
 import os
@@ -33,8 +33,9 @@ import sys
 srcpath=sys.argv[1]
 trgpath=sys.argv[2]
 #sys.path.insert(0, srcpath)
-
-
+file_path=os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, file_path)
+from comm.Procs import SetProcStatus, GetProcStatus
 
 
 if __name__ == "__main__":

@@ -19,17 +19,17 @@ sys.path.insert(0, src_dir)
 #Because the test is not in the same directory as the source files, 
 # we need to add the source directory to the python path to import the necessary modules for testing.
 sys.path.insert(0, os.path.join(src_dir,"OTFFineTune/"))
-from OTFFineTune.Procs import GetGPUProcStatus, SetGPUProcStatus
+from OTFFineTune.src.OTFFineTune.procs.comm.Procs import GetGPUProcStatus, SetGPUProcStatus
 from OTFFineTune.Tests.Utils import MockDFTReqHandler, MockDFTReqHandlerNoStress, LoadTestConfig
 
 def test_model_construction_and_forward_pass():
     """Test the construction of the Network class and a forward pass with dummy input data.
     This test validates that the model can be instantiated and that the forward method produces outputs of the expected shape."""
     if NNP=='MACE':
-        from OTFFineTune.MACE_Loader import MACE_Builder
+        from OTFFineTune.src.OTFFineTune.models.MACE_Loader import MACE_Builder
         builder_func=MACE_Builder
     elif NNP=='SpiceNequIP':
-        from OTFFineTune.SpiceModelLoader import NequIP_Builder
+        from OTFFineTune.src.OTFFineTune.models.SpiceModelLoader import NequIP_Builder
         builder_func=NequIP_Builder
     else:
         raise ValueError("Invalid model type specified in test configuration. Expected 'MACE' or 'NequIP'.")
@@ -59,7 +59,7 @@ def test_model_construction_and_forward_pass():
 def test_optimizer_step():
     """Test the optimizer step functionality of the CyclicOptimizer class.
     This test validates that the optimizer can perform a step and that the model parameters are updated accordingly."""
-    from OTFFineTune.MCMC import CyclicOptimizer, GaussianMeanField
+    from OTFFineTune.src.OTFFineTune.core.MCMC import CyclicOptimizer, GaussianMeanField
     from OTFFineTune.Tests.Utils import DummyDataLoader, DummyModelConstructor
     import torch
     #Construct dummy model and data loader for testing
@@ -81,8 +81,8 @@ def test_optimizer_step():
 
 def test_process_communication():
     """Tests if the Process status files read and write work as expected."""
-    from OTFFineTune.Procs import SetProcStatus, GetProcStatus,  SetUp
-    from OTFFineTune.TrainProc import TrainProcComSetUp, SetTrainRequest, GetTrainStatus, SetTrainProcStatus
+    from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SetProcStatus, GetProcStatus,  SetUp
+    from OTFFineTune.src.OTFFineTune.procs.comm.TrainProc import TrainProcComSetUp, SetTrainRequest, GetTrainStatus, SetTrainProcStatus
 
     #remove tmo folder if it exists
     import shutil

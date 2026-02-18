@@ -34,16 +34,17 @@ import sys
 with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
-CodePath=config['CodePath']
+
 ErrorThreshold=config['ErrorThreshold']
-ErrorThreshold
-sys.path.insert(0, CodePath)
+
 
 from ..core.MCMC import GaussianMeanField,CyclicOptimizer
 
-
+file_path=os.path.dirname(os.path.realpath(__file__))
+config_path=os.path.join(file_path,'constructor_data/config.yaml')
+model_dict_path=os.path.join(file_path,'constructor_data/SpiceDict')
 conf=Config()
-conf=conf.from_file(CodePath+'OTFFineTune/config.yaml')
+conf=conf.from_file(config_path)
 
 model=model_from_config(conf,initialize=True).model
 
@@ -228,7 +229,7 @@ def NequIP_Loader():
         model: Initialized probabilistic model with uncertainty quantification
     """
     module=Network(dict_size=100)
-    SpiceDict=torch.load(CodePath +'OTFFineTune/Dicts/SpiceDict',map_location=torch.device('cpu'))
+    SpiceDict=torch.load(model_dict_path,map_location=torch.device('cpu'))
     keys=SpiceDict.keys()
     dict={}
     for k in keys:

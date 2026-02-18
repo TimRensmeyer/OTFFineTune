@@ -52,8 +52,23 @@ if __name__ == "__main__":
     with open('runconfig.yaml', 'r') as file:
         config = yaml.safe_load(file)
 
-    CodePath=config['CodePath']
-    TargetPath=config['TargetPath']
+    #If the CodePath and/or TargetPath are specified in the runconfig.yaml use those
+    #Otherwise use the path to this file to determine the CodePath and
+    #set the TargetPath as the working directory (i.e. the directory from which the simulation is launched)
+
+    if 'CodePath' in config:
+
+        CodePath=config['CodePath']
+    else:
+        #This file lives in CodePath/OTFFineTune/src/OTFFineTune/procs/MLFFProc.py, 
+        # so we need to go up four levels to get to the CodePath
+        file_path=os.path.dirname(os.path.realpath(__file__))
+        CodePath=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(file_path))))
+    if 'TargetPath' in config:
+        TargetPath=config['TargetPath']
+    else:
+        TargetPath=os.getcwd()
+
     sys.path.insert(0, CodePath)
     file_path=os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(0, file_path)
@@ -91,7 +106,7 @@ if __name__ == "__main__":
         command="python3 "+proc_path+"/VASPProc.py"+ " " +CodePath +" "+TargetPath
         #command="python3 "+CodePath+"OTFFineTune/src/OTFFineTune/procs/VASPProc.py"+ " " +CodePath +" "+TargetPath
     else:
-        command="python3 "+CodePath+"OTFFineTune/Tests/MockVASPProc.py"+ " " +CodePath +" "+TargetPath
+        command="python3 "+proc_path+"/MockVASPProc.py"+ " " +CodePath +" "+TargetPath
 
     os.popen(command)
     SetGPUProcStatus("OTF Force Field Starting Up")

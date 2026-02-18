@@ -1,11 +1,11 @@
-CodePath: '/beegfs/home/r/rensmeyt/Git/'       #Path to the directory that contains the OTFFineTune folder
-TargetPath: '/beegfs/home/r/rensmeyt/Git/OTFFineTune/Tests/UnitTests/'    #Path to the folder, this file is located in.
+#CodePath: '/beegfs/home/r/rensmeyt/Git/'       #Path to the directory that contains the OTFFineTune folder
+#TargetPath: '/beegfs/home/r/rensmeyt/Git/OTFFineTune/Tests/UnitTests/'    #Path to the folder, this file is located in.
 DFTResourceManager: SLURM
 NNPResourceManager: SLURM
 FFType: Ensemble
 n_models: 3
 dev_list: [0,1,2] 
-NNPBuilder: MACE
+NNPBuilder: SpiceNequIP #MACE
 constructor_args: [0.5]
 DFTCode: vasp_std
 DFTProcSubmitFile: VASPProc_Submit

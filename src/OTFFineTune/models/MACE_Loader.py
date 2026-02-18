@@ -22,7 +22,7 @@ import yaml
 with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
-CodePath=config['CodePath']
+
 ErrorThreshold=config['ErrorThreshold']
 
 

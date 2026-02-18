@@ -12,7 +12,9 @@ import ase
 
 with open('runconfig.yaml', 'r') as f:
     conf = yaml.safe_load(f)
-src_dir=conf['CodePath'] #relative path to the source python files
+#This file is located in CodePath/OTFFineTune/Tests/UnitTests, so we need to go up 
+# four levels to get to the CodePath
+src_dir=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))   
 NNP=conf['NNPBuilder']
 import sys
 sys.path.insert(0, src_dir)

@@ -8,6 +8,7 @@ import ase
 import numpy as np
 import torch
 import yaml
+import os
 if __name__ == "__main__":
   #setting random seeds for reproducibility of the tests
   torch.manual_seed(0)
@@ -15,7 +16,7 @@ if __name__ == "__main__":
 
   with open('runconfig.yaml', 'r') as f:
       conf = yaml.safe_load(f)
-  src_dir=conf['CodePath'] #relative path to the source python files
+  src_dir=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
   NNP=conf['NNPBuilder']
   import sys
   sys.path.insert(0, src_dir)
@@ -23,3 +24,12 @@ if __name__ == "__main__":
   UnitTests.test_model_construction_and_forward_pass()
   UnitTests.test_optimizer_step()
   UnitTests.test_process_communication()
+
+  #removing temporary files created during testing
+  import shutil
+  import os
+  temp_folders = ['Checkpoints', 'Coords', 'DFT_preds', 'ML_preds', 'tmp']
+
+  for folder in temp_folders:
+      if os.path.exists(folder):
+          shutil.rmtree(folder)

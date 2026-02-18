@@ -1,2 +1,0 @@
-src_dir: '..' #relative path to the source python files
-NNP: MACE  #Options: MACE, NequIP

@@ -14,7 +14,8 @@ runconfigfile=os.path.join(simulation_dir,'runconfig.yaml')
 with open(runconfigfile, 'r') as f:
     runconfig = yaml.safe_load(f)
 
-sys.path.insert(0, runconfig['CodePath'])
+src_dir=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+sys.path.insert(0, src_dir)
 if runconfig['NNPBuilder']=='MACE':
     mode='MACE'
 elif runconfig['NNPBuilder']=='SpiceNequIP':
@@ -35,7 +36,7 @@ if 'tmp' not in os.listdir('./'):
     SetUp()
 
 
-os.popen('python3 -u ' + os.path.join(runconfig['CodePath'],'OTFFineTune/src/OTFFineTune/procs/MLFFProc.py >logs.txt'))
+os.popen('python3 -u ' + os.path.join(src_dir,'OTFFineTune/src/OTFFineTune/procs/MLFFProc.py >logs.txt'))
 
 #Wait for the OTF process to be ready before proceeding with the test
 launched=False

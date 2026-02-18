@@ -1,5 +1,5 @@
-CodePath: '/beegfs/home/r/rensmeyt/Git/'       #Path to the directory that contains the OTFFineTune folder
-TargetPath: '/beegfs/home/r/rensmeyt/Git/OTFFineTune/Tests/IntegrationTest/'    #Path to the folder, this file is located in.
+#CodePath: '/beegfs/home/r/rensmeyt/Git/'       #Path to the directory that contains the OTFFineTune folder
+#TargetPath: '/beegfs/home/r/rensmeyt/Git/OTFFineTune/Tests/IntegrationTest/'    #Path to the folder, this file is located in.
 DFTResourceManager: SLURM
 NNPResourceManager: SLURM
 FFType: Ensemble

@@ -34,8 +34,18 @@ import yaml
 with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
+if 'CodePath' in config:
+    CodePath=config['CodePath']
+else:
+    #This file lives in CodePath/OTFFineTune/src/OTFFineTune/procs/MLFFProc.py, 
+    # so we need to go up four levels to get to the CodePath
+    file_path=os.path.dirname(os.path.realpath(__file__))
+    CodePath=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(file_path))))
+if 'TargetPath' in config:
+    TargetPath=config['TargetPath']
+else:
+    TargetPath=os.getcwd()
 ErrorThreshold=config['ErrorThreshold']
-CodePath=config['CodePath']
 
 from ..procs.comm.TrainProc import TrainProcComSetUp,SetTrainRequest,GetTrainStatus,SetTrainProcStatus
 from .LogPriors import GaussianMeanField
@@ -240,7 +250,7 @@ class EnsembleFF(nn.Module):
                 command=["python3","-u",OTF_dir+"/procs/Training.py",'{}'.format(proc_number),
                        '{}'.format(dev),'{}'.format(n_models),constructor,init_type,self.path] +arg_list
             else:
-                command=["python3","-u",CodePath+"OTFFineTune/Tests/TestTraining.py",'{}'.format(proc_number),
+                command=["python3","-u",OTF_dir+"/procs/TestTraining.py",'{}'.format(proc_number),
                        '{}'.format('cpu'),'{}'.format(n_models),constructor,init_type,self.path] +arg_list
             subprocess.Popen(command,stdout=open("tmp/training{}.log".format(proc_number), "w"))
         if restart:

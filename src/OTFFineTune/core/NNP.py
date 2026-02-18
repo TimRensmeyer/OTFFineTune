@@ -260,7 +260,7 @@ class EnsembleFF(nn.Module):
                 for model_id in range(len(self.dev_models[proc_number])):                    
                     model=self.model_list[i]
                     model=model.to(torch.device('cpu'))   # This may look stupid but the memories of the GPUs in our hpc arent linked properly so we have to take a cpu detour.
-                    model.load_state_dict(torch.load('model_dict{}{}'.format(proc_number,model_id),map_location=torch.device('cpu')))
+                    model.load_state_dict(torch.load('model_dict{}{}'.format(proc_number,model_id),map_location=torch.device('cpu'),weights_only=True))
                     model=model.to(self.pred_dev)
                     self.model_list[i]=model
                     i+=1
@@ -311,7 +311,7 @@ class EnsembleFF(nn.Module):
             for model_id in range(len(self.dev_models[proc_number])):
                 model=self.model_list[i]
                 model=model.to(torch.device('cpu')) # This may look stupid but the memories of the GPUs in our hpc arent linked properly so we have to take a cpu detour.
-                model.load_state_dict(torch.load('model_dict{}{}'.format(proc_number,model_id),map_location=torch.device('cpu')))
+                model.load_state_dict(torch.load('model_dict{}{}'.format(proc_number,model_id),map_location=torch.device('cpu'),weights_only=True))
                 model=model.to(self.pred_dev)
                 self.model_list[i]=model
                 i+=1
@@ -401,7 +401,7 @@ class OTFForceField(nn.Module):
         self.steps=0
         self.StressIncluded=True
         if restart:
-            OTFParams=torch.load('tmp/OTFParams')
+            OTFParams=torch.load('tmp/OTFParams',weights_only=False)
             self.E=OTFParams[0]
             self.n=OTFParams[1]
             self.E_offset=OTFParams[2]

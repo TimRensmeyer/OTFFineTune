@@ -11,7 +11,8 @@ It adds:
 The Network class loads a MACE MP model and augments it with trainable uncertainty
 heads. 
 """
-
+import warnings
+warnings.filterwarnings('ignore', message='.*TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD.*')
 import torch
 from torch import nn as nn
 from mace.calculators import mace_mp, mace_off

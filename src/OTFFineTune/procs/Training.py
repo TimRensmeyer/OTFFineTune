@@ -89,7 +89,7 @@ if __name__ == "__main__":
         elif builder_func=='MACE':
             from OTFFineTune.src.OTFFineTune.models.MACE_Loader import MACE_Builder
         for i in range(n_models):
-            model=torch.load('Checkpoints/model{}{}'.format(pid,i),map_location=torch.device('cpu'))
+            model=torch.load('Checkpoints/model{}{}'.format(pid,i),map_location=torch.device('cpu'),weights_only=False)
             model=model.to(target_dev)
             model.change_device(target_dev)
             models.append(model)            
@@ -124,7 +124,7 @@ if __name__ == "__main__":
             break
         if status=="Training Request":
             SetTrainProcStatus(pid,'Training')
-            new_data=torch.load('tmp/new_data')
+            new_data=torch.load('tmp/new_data',weights_only=False)
             i=0
             for model in models:
                 for cycle in range(1):

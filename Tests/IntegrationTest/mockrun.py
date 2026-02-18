@@ -1,4 +1,5 @@
 import os 
+import subprocess
 from pathlib import Path
 import sys
 import yaml
@@ -36,8 +37,13 @@ if 'tmp' not in os.listdir('./'):
     SetUp()
 
 
-os.popen('python3 -u ' + os.path.join(src_dir,'OTFFineTune/src/OTFFineTune/procs/MLFFProc.py >logs.txt'))
-
+#os.popen('python3 -u ' + os.path.join(src_dir,'OTFFineTune/src/OTFFineTune/procs/MLFFProc.py >logs.txt'))
+log_file = open('logs.txt', 'w')
+mlff_process = subprocess.Popen(
+    ['python3', '-u', os.path.join(src_dir, 'OTFFineTune/src/OTFFineTune/procs/MLFFProc.py')],
+    stdout=log_file,
+    stderr=subprocess.STDOUT
+)
 #Wait for the OTF process to be ready before proceeding with the test
 launched=False
 while not launched:
@@ -147,8 +153,10 @@ dyn.run(5)
 from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SetGPUProcStatus
 
 SetGPUProcStatus('Shutdown')
-
 time.sleep(6)  # Give the OTF process time to shut down before the script exits
+mlff_process.terminate()  # Gracefully terminate the process
+mlff_process.wait(timeout=5)  # Wait for it to finish
+log_file.close()
 # After the simulation, remove the tmp directory and its contents
 import shutil
 #remove model dicts and npt.log

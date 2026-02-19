@@ -30,6 +30,8 @@ from nequip.utils.torch_geometric import Batch
 import copy
 import yaml
 import sys
+import numpy as np
+from typing import List, Union, Any, Optional
 
 with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
@@ -64,7 +66,7 @@ class Network(nn.Module):
     Args:
         dict_size: Number of element types (default 100)
     """
-    def __init__(self,dict_size=4):
+    def __init__(self,dict_size: int = 4) -> None:
         super(Network,self).__init__()
         self.rescale=nn.Parameter(torch.ones(dict_size,),requires_grad=True)
         self.lin=nn.Sequential(nn.Linear(64,32),nn.Linear(32,1))
@@ -74,7 +76,7 @@ class Network(nn.Module):
 
 
         
-    def forward(self,X):
+    def forward(self,X: List) -> List:
         (type_batch,diction)=X
         dev=next(iter(self.lin.parameters())).device
 
@@ -127,12 +129,17 @@ class model(StochasticModel):
     Converts ASE atomic structures to NequIP graph representation for inference.
     Handles unit conversions between the SPICE dataset (atomic units) and internal units.
     """
-    def __init__(self,net,scale=14.3117/0.529177):
+    def __init__(self,
+                 net: nn.Module,
+                 scale: float = 14.3117/0.529177) -> None:
         super(model,self).__init__()
         self.net=net
         self.scale=scale
     
-    def predict(self,Atoms,R,Lattice=None):
+    def predict(self,
+                Atoms: List[int],
+                R=Union[np.array, torch.Tensor],
+                Lattice=Optional[Union[np.array,torch.Tensor]]) -> List:
         """
         Generate single prediction with uncertainties.
         
@@ -159,7 +166,7 @@ class model(StochasticModel):
         return e_pred,f_pred,(std_e,std_f)
 
 
-    def evaluate(self,data):
+    def evaluate(self,data: List) -> torch.Tensor:
         """
         Compute Gaussian negative log-likelihood on mini-batch.
         
@@ -218,7 +225,7 @@ class model(StochasticModel):
             return torch.sum(ll_f)/bs+torch.sum(ll_e)/bs   
 
 
-def NequIP_Loader():
+def NequIP_Loader() -> StochasticModel:
     """
     Initialize NequIP model with pretrained weights from checkpoint.
     
@@ -246,6 +253,7 @@ def NequIP_Loader():
 
 from ..core.NNP import NNP
 from ..data.NequIPDataLoader import weighted_dataloader
+import ase
 class NequIP_Wrapper(NNP):
     """
     Complete training wrapper for SPICE potential with on-the-fly fine-tuning
@@ -259,7 +267,9 @@ class NequIP_Wrapper(NNP):
     Args:
         args: [prior_strength] - strength of Gaussian prior on parameters
     """
-    def __init__(self,args,testing=False):
+    def __init__(self,
+                 args: List,
+                 testing: bool = False) -> None:
         super(NequIP_Wrapper,self).__init__()
         prior_strength=args[0]
         self.model=NequIP_Loader()
@@ -290,7 +300,7 @@ class NequIP_Wrapper(NNP):
                                         dataloader=dataloader, max_lr=0.0001,cycle_length=2,
                                         burnin_steps=0,preheat=0)
 
-    def predict(self,ase_atoms):
+    def predict(self,ase_atoms: ase.Atoms) -> List:
         """Generate single prediction with uncertainties from ASE Atoms object."""
         R=ase_atoms.get_positions()
         Atoms=ase_atoms.get_atomic_numbers()
@@ -298,16 +308,16 @@ class NequIP_Wrapper(NNP):
 
         return (e_pred,f_pred,std_e,std_f)
     
-    def change_device(self,device):
+    def change_device(self,device: torch.device) -> None:
         """Move model and optimizer to device."""
         self.optimizer.change_device(device)
         self.model=self.model.to(device)
 
-    def update(self,new_data):
+    def update(self,new_data: List) -> None:
         """Retrain with new labeled data using CyclicOptimizer."""
         self.optimizer.add(new_data)
         self.model=self.optimizer.run(self.model)
 
-def NequIP_Builder(args,testing=False):
+def NequIP_Builder(args,testing=False) -> NequIP_Wrapper:
     """Factory function to create NequIP_Wrapper instance."""
     return NequIP_Wrapper(args,testing=testing)

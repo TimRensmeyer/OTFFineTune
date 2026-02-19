@@ -23,32 +23,32 @@ import torch.nn as nn
 import numpy as np
 import os
 
-def TrainProcComSetUp(nprocs):
+def TrainProcComSetUp(nprocs: int) -> None:
     """Initialize status files for nprocs training subprocesses."""
     for i in range(nprocs):
         fp=open('./tmp/train{}_status.txt'.format(i), 'w')
         fp.write('ready')
         fp.close()
 
-def SetTrainProcStatus(i,status):
+def SetTrainProcStatus(i: int, status: str) -> None:
     """Set status of training process i."""
     fp=open('./tmp/train{}_status.txt'.format(i), 'w')
     fp.write(status)
     fp.close()
 
-def GetTrainProcStatus(i):
+def GetTrainProcStatus(i: int) -> str:
     """Get current status of training process i."""
     fp=open('./tmp/train{}_status.txt'.format(i), 'r')
     status=fp.read()
     fp.close()
     return status
 
-def SetTrainRequest(nprocs):
+def SetTrainRequest(nprocs: int) -> None:
     """Signal all training processes to start retraining cycle."""
     for i in range(nprocs):
         SetTrainProcStatus(i,'Training Request')
 
-def GetTrainStatus(nprocs):
+def GetTrainStatus(nprocs: int) -> str:
     """
     Check if all training processes have finished current cycle.
     

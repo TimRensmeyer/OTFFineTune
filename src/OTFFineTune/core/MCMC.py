@@ -29,6 +29,7 @@ import numpy as np
 import abc
 from abc import abstractmethod
 import time
+from typing import List, Union, Any
 
 # The base class for modeling a parametric propability density that
 # all models using this library should subclass from.
@@ -53,7 +54,7 @@ class StochasticModel(abc.ABC,nn.Module):
         super(StochasticModel,self).__init__()
 
     @abc.abstractmethod
-    def evaluate(self,data):
+    def evaluate(self,data: Any) -> torch.Tensor:
         ...
 
 # the base class for Monte Carlo Markov Chain based optimizers that all such optimizer classes should
@@ -80,11 +81,11 @@ class MCMCOptimizer(abc.ABC):
         super(MCMCOptimizer,self).__init__()
 
     @abc.abstractmethod
-    def step(self,model):
+    def step(self,model: StochasticModel) -> Union[None, StochasticModel]:
         ...
 
     @abc.abstractmethod
-    def run(self,nsteps,model):
+    def run(self,nsteps: int,model: StochasticModel) -> Union[None, StochasticModel]:
         ...
         
 #This class implements the logarithm of a gaussian mean field prior, rescaled by a scaling factor.
@@ -92,16 +93,16 @@ class MCMCOptimizer(abc.ABC):
 #The shapes of the samples have to broadcastable to the corresponding model layer shape.
 class GaussianMeanField(nn.Module):
 
-    def __init__(self,mean,std):
+    def __init__(self,mean:List[torch.Tensor],std:List[torch.Tensor]) -> None:
         super(GaussianMeanField,self).__init__()
         self.std=std        #standard deviation of the gaussian density
         self.mean=mean      #mean of the gaussian density
-    def change_device(self,device):
+    def change_device(self,device:torch.device)-> None:
         for i in range(len(self.std)):
             self.std[i]=self.std[i].to(device)
             self.mean[i]=self.mean[i].to(device)
 
-    def forward(self,model,scaling):
+    def forward(self,model: StochasticModel,scaling: float) -> torch.Tensor:
         log_prior=0.0
         for p,m,s in zip(model.parameters(),self.mean,self.std):
             log_prior+=torch.sum(-0.5*((p-m)/s)**2-0.5*torch.log(2*torch.tensor(3.1415926)*s**2))*scaling
@@ -128,7 +129,10 @@ class amsmass(nn.Module):
         burnin_steps: Number of steps before freezing mass matrix
     """
 
-    def __init__(self,beta=0.999,eps=1e-5,burnin_steps=900000):
+    def __init__(self,
+                 beta: float = 0.999,
+                 eps: float = 1e-5,
+                 burnin_steps: float = 900000) -> None:
         super(amsmass,self).__init__()
         self.steps=0
         self.eps=eps
@@ -138,14 +142,14 @@ class amsmass(nn.Module):
         self.beta_pow_steps=1
         self.burnin_steps=burnin_steps
 
-    def change_device(self,device):
+    def change_device(self,device: torch.device) -> None:
         if self.square_mass != None:
 
             for i in range(len(self.v)):
                 self.square_mass[i]=self.square_mass[i].to(device)
                 self.v[i]=self.v[i].to(device)
 
-    def forward(self,model):
+    def forward(self,model: nn.Module) -> List[Union[torch.Tensor, None]]:
 
         if self.square_mass == None:
             self.square_mass=[]
@@ -220,7 +224,16 @@ class SGHMC(MCMCOptimizer):
         debias: Apply Adam-style bias correction to momentum
     """
 
-    def __init__(self,log_prior,model,dataloader,inv_mass = amsmass(),lr=0.001,T=1,burnin_steps=0,preheat=0,debias=True):
+    def __init__(self,log_prior: Any,
+                 model: StochasticModel,
+                 dataloader: Any,
+                 inv_mass: Any = amsmass(),
+                 lr: float = 0.001,
+                 T: float = 1.0,
+                 burnin_steps: int = 0,
+                 preheat: int = 0,
+                 debias: bool = True) -> None:
+        
         super(SGHMC,self).__init__()
         self.steps=1
         self.log_prior=log_prior
@@ -239,13 +252,13 @@ class SGHMC(MCMCOptimizer):
             size=p.size()
             value=torch.zeros(size=size,device=p.device)
             self.momentum.append(value)
-    def zero_momentum(self):
+    def zero_momentum(self)-> None:
         """Reset momentum to zero (used at cycle boundaries)."""
         with torch.no_grad():       
             for i in range(len(self.momentum)):
                 self.momentum[i]*=0
 
-    def change_device(self,device):
+    def change_device(self,device: torch.device) -> None:
         """Move all buffers to specified device."""
         self.inv_mass.change_device(device)
         self.log_prior.change_device(device)
@@ -253,7 +266,9 @@ class SGHMC(MCMCOptimizer):
         for i in range(len(self.momentum)):
             self.momentum[i]=self.momentum[i].to(device)
 
-    def est_var(self,model,weighted=False,n_batches=20):
+    def est_var(self,model: StochasticModel,
+                weighted: bool = False,
+                n_batches: int = 20) -> None:
         """
         Estimate parameter variance for noise scaling (currently unused).
         """
@@ -300,7 +315,10 @@ class SGHMC(MCMCOptimizer):
                     self.Var[j]+=((p.grad-m)**2/((n_batches-1)*(dataset_size**2)))
                     p.grad=None
 
-    def step(self,model,weighted=False,reduce_var=False):
+    def step(self,
+             model: StochasticModel,
+             weighted: bool = False,
+             reduce_var: bool = False) -> None:
         """
         Execute single SGHMC step.
         
@@ -368,7 +386,10 @@ class SGHMC(MCMCOptimizer):
                     q.grad=None
 
 
-    def run(self,nsteps,model,avg_model=None):
+    def run(self,
+            nsteps: int,
+            model: StochasticModel,
+            avg_model: Union[None,StochasticModel] = None) -> Union[None,StochasticModel]:
         """
         Execute nsteps SGHMC steps with optional exponential moving average.
         
@@ -412,8 +433,16 @@ class CyclicOptimizer():
         max_lr: Maximum learning rate in cosine schedule
     """
 
-    def __init__(self, model,log_prior,dataloader,cycle_length=20, max_lr=0.003,
-                 burnin_steps=400,preheat=100,debias=False):
+    def __init__(self,
+                 model: StochasticModel,
+                 log_prior: Any,
+                 dataloader: Any,
+                 cycle_length: int = 20,
+                 max_lr: float = 0.003,
+                 burnin_steps: int = 400,
+                 preheat: int = 100,
+                 debias: bool = False) -> None:
+        
         model_device=next(iter(model.parameters())).device
         
         self.optimizer=SGHMC(log_prior,model,dataloader,burnin_steps=burnin_steps,preheat=preheat,debias=debias)
@@ -421,15 +450,15 @@ class CyclicOptimizer():
         self.max_learning_rate=max_lr
         self.initialized=False
 
-    def change_device(self,device):
+    def change_device(self,device: torch.device) -> None:
         """Move optimizer to specified device."""
         self.optimizer.change_device(device)
 
-    def add(self,new_data):
+    def add(self,new_data: Any) -> None:
         """Add new sample to training data."""
         self.optimizer.dataloader.add(new_data)
 
-    def run(self,model):
+    def run(self,model: StochasticModel) ->StochasticModel:
         """
         Execute one optimization cycle with cosine annealing.
         

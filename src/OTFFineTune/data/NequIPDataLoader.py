@@ -20,6 +20,7 @@ from nequip.data.AtomicData import AtomicData
 from nequip.data import AtomicDataDict
 from nequip.model._build import model_from_config
 from nequip.utils.torch_geometric import Batch
+from typing import List, Any, Union, Optional
 
 class dataloader():
     """
@@ -31,7 +32,15 @@ class dataloader():
     Converts ASE Atoms to NequIP graph representation with simple random sampling.
     """
 
-    def __init__(self,device,X_pos=[],X_a=[],Y_f=[],Y_e=[],bs=5,r_max=4,pbc=False):
+    def __init__(self,
+                 device: torch.device,
+                 X_pos: List = [],
+                 X_a: List = [],
+                 Y_f: List = [],
+                 Y_e: List = [],
+                 bs: int = 5,
+                 r_max: float = 4,
+                 pbc: bool = False) -> None:
         self.X_pos=X_pos
         self.X_a=X_a
         self.Y_f=Y_f
@@ -46,10 +55,10 @@ class dataloader():
         np.random.shuffle(self.ind)
 
         
-    def len(self):
+    def len(self) -> int:
         return self.size
     
-    def add(self,sample):
+    def add(self, sample: List) -> None:
 
         ase_atoms,y_e,y_f=sample
         R=ase_atoms.get_positions()
@@ -69,7 +78,7 @@ class dataloader():
         self.Y_e.append(y_e)
 
     
-    def sample(self):
+    def sample(self) -> List:
         device=self.device
         if self.bs*self.counter > self.size:
             np.random.shuffle(self.ind)
@@ -87,7 +96,7 @@ class dataloader():
 
         return ((a,R),(e_t,f_t))
     
-    def last_added(self):
+    def last_added(self) -> List:
         device=self.device
 
         bs=1
@@ -121,7 +130,16 @@ class weighted_dataloader():
         pbc: Whether periodic boundary conditions apply
     """
 
-    def __init__(self,device,X_pos=[],X_a=[],Y_f=[],Y_e=[],bs=5,r_max=4,pbc=False):
+    def __init__(self,
+                 device: torch.device,
+                 X_pos: List = [],
+                 X_a: List = [],
+                 Y_f: List = [],
+                 Y_e: List = [],
+                 bs: int = 5,
+                 r_max: float = 4,
+                 pbc: bool = False) -> None:
+        
         self.X_pos=X_pos
         self.X_a=X_a
         self.Y_f=Y_f
@@ -136,10 +154,10 @@ class weighted_dataloader():
         np.random.shuffle(self.ind)
 
         
-    def len(self):
+    def len(self) -> int:
         return self.size
     
-    def add(self,sample):
+    def add(self,sample: List) -> None:
 
         ase_atoms,y_e,y_f=sample
         R=ase_atoms.get_positions()
@@ -159,7 +177,7 @@ class weighted_dataloader():
         self.Y_e.append(y_e)
 
     
-    def sample(self):
+    def sample(self) -> List:
         #if the batch size is larger than the size of the data set just return the dataset
         device=self.device
         if self.size<=self.bs:
@@ -229,7 +247,7 @@ class weighted_dataloader():
             return ((a,R),(e_t,f_t),weights)
                     
 
-    def last_added(self):
+    def last_added(self) -> List:
         device=self.device
 
         bs=1

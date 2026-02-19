@@ -19,6 +19,8 @@ from mace.calculators import mace_mp, mace_off
 from mace.tools import torch_geometric
 from mace import data
 import yaml
+from typing import List, Union, Any
+import ase
 
 with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
@@ -30,7 +32,7 @@ ErrorThreshold=config['ErrorThreshold']
 from ..data.DataLoader import weighted_dataloader
 from ..core.MCMC import CyclicOptimizer, GaussianMeanField
 
-def init_weights_zeros(m):
+def init_weights_zeros(m: nn.Module) -> None:
     """Initialize network weights to zero."""
     if isinstance(m, nn.Linear):
         nn.init.zeros_(m.weight)
@@ -49,7 +51,7 @@ class Network(nn.Module):
     The uncertainty heads use node-level features and output log-uncertainties
     which are exponentiated to produce positive numbers.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super(Network,self).__init__()
         model = mace_mp(model="medium", dispersion=False, default_dtype="float32", device='cpu',return_raw_model=True)
         model.float()
@@ -62,7 +64,15 @@ class Network(nn.Module):
         self.F_uncert.apply(init_weights_zeros)
         self.S_uncert=nn.Parameter(torch.zeros(1,),requires_grad=True)
 
-    def forward(self, atoms_list,training=False):
+    def forward(self, 
+                atoms_list: Any,
+                training: bool=False) -> List[torch.Tensor]:
+        """Forward call of the wrapped model to calculate energies, forces and stresses as
+        well as the corresponding standard deviations. 
+        During inference, atoms_list will be list of ase.atoms instances.
+        To avoid the computational overhead of creating the graph-based native input structure
+        of the raw mace_mp neural network, training structures are already stored in this graph-
+        based format and need a different logic to forwards."""
         #In a normal forward call the Input will be a list of ASE Atoms objects
         if isinstance(atoms_list, list):
             configs=data.utils.config_from_atoms_list(atoms_list)
@@ -75,7 +85,8 @@ class Network(nn.Module):
                                                         drop_last=False)
             X=next(iter(dl))
             
-        # During Training the dataloader will store the input data as a list of AtomicData objects, so the geometric graph won't have to be create each time a geometry is sampled
+        # During Training the dataloader will store the input data as a list of AtomicData objects,
+        # so the geometric graph won't have to be create each time a geometry is sampled
         # Hence the samples will already be in the right structure.
         else:
             X=atoms_list
@@ -109,8 +120,8 @@ class Network(nn.Module):
 
         return energy,forces,stress,energy_uncert,force_uncert,stress_uncert
 
-
-class smodel(nn.Module):
+from ..core.MCMC import StochasticModel
+class smodel(StochasticModel):
     """
     Probabilistic model wrapper for MACE Network.
     
@@ -120,15 +131,17 @@ class smodel(nn.Module):
     
     Supports weighted importance sampling for loss computation.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super(smodel,self).__init__()
         self.net=Network()
 
-    def predict(self,atoms_list,training=False):
+    def predict(self,
+                atoms_list: Any,
+                training: bool=False) -> List:
         energy,forces,stress,energy_uncert,force_uncert,stress_uncert=self.net(atoms_list,training=training)
         return energy*23.0609,forces*23.0609,stress*23.0609,(energy_uncert,force_uncert,stress_uncert)
     
-    def evaluate(self,data):
+    def evaluate(self,data: List) -> torch.Tensor:
         dev=next(iter(self.net.parameters())).device
         atoms_list=data[0]
         
@@ -192,8 +205,8 @@ class smodel(nn.Module):
         return ll_e+ll_f+ll_s
 
 
-
-class MACE_Wrapper(nn.Module):
+from ..core.NNP import NNP
+class MACE_Wrapper(NNP):
     """
     Complete training wrapper for MACE potential to integrate into NNP.py file.
     
@@ -204,7 +217,9 @@ class MACE_Wrapper(nn.Module):
     Args:
         args: [prior_strength] - strength of Gaussian prior on parameters
     """
-    def __init__(self,args,testing=False):
+    def __init__(self, 
+                 args: List,
+                 testing: bool = False) -> None:
         super(MACE_Wrapper,self).__init__()
         prior_strength=args[0]
         self.model=smodel()
@@ -237,21 +252,25 @@ class MACE_Wrapper(nn.Module):
                                          max_lr=0.001,
                                          burnin_steps=0,preheat=0)
         
-    def predict(self,ase_atoms):
+    def predict(self,
+                ase_atoms:ase.atoms) -> List[torch.Tensor]:
         """Generate single prediction with uncertainties in eV/Å units."""
         out=self.model.predict([ase_atoms])
         return [out[0],out[1],out[2],out[3][0],out[3][1],out[3][2]]
     
-    def change_device(self,device):
+    def change_device(self,
+                      device: torch.device) -> None:
         """Move model and optimizer to device."""
         self.optimizer.change_device(device)
         self.model=self.model.to(device)
     
-    def update(self,new_data):
+    def update(self,
+               new_data: List) -> None:
         """Retrain with new labeled data using CyclicOptimizer."""
         self.optimizer.add(new_data)
         self.model=self.optimizer.run(self.model)
 
-def MACE_Builder(args,testing=False):
+def MACE_Builder(args: List,
+                 testing: bool = False) -> MACE_Wrapper:
     """Factory function to create MACE_Wrapper instance."""
     return MACE_Wrapper(args,testing=testing)

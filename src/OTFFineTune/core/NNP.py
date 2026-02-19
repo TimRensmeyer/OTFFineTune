@@ -28,7 +28,7 @@ from typing import List
 import numpy as np
 import copy
 import os
-
+import ase
 import yaml
 
 with open('runconfig.yaml', 'r') as file:
@@ -48,9 +48,9 @@ else:
 ErrorThreshold=config['ErrorThreshold']
 
 from ..procs.comm.TrainProc import TrainProcComSetUp,SetTrainRequest,GetTrainStatus,SetTrainProcStatus
-from .LogPriors import GaussianMeanField
-from .MCMC import CyclicOptimizer
+from .MCMC import CyclicOptimizer, GaussianMeanField, StochasticModel
 import subprocess
+from typing import List, Union, Any
 
 
 class NNP(abc.ABC,nn.Module):
@@ -64,11 +64,11 @@ class NNP(abc.ABC,nn.Module):
 
     __metaclass__=abc.ABCMeta
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(NNP,self).__init__()
 
     @abc.abstractmethod
-    def predict(self,ase_atoms):
+    def predict(self,ase_atoms: ase.atoms) -> List[torch.Tensor]:
         """
         Generate predictions for a given atomic structure.
         
@@ -86,7 +86,7 @@ class NNP(abc.ABC,nn.Module):
         ...
 
     @abc.abstractmethod
-    def update(self,new_data):
+    def update(self,new_data: List) -> None:
         """
         Update the NNP with new labeled data and retrain.
         
@@ -102,7 +102,8 @@ class NNP(abc.ABC,nn.Module):
 
 # A wrapper function to make predictions from an ensemble of models
 # by fitting a Gaussian to the ensemble predictive distribution
-def Gaussian_NNP_Ens(model_list,ase_atoms):
+def Gaussian_NNP_Ens(model_list:List[StochasticModel], 
+                     ase_atoms: ase.atoms) -> List[torch.Tensor] :
     """
     Ensemble prediction with Gaussian posterior approximation.
     
@@ -175,7 +176,7 @@ def Gaussian_NNP_Ens(model_list,ase_atoms):
 
 
 
-class EnsembleFF(nn.Module):
+class EnsembleFF(NNP):
     """
     Ensemble Force Field Manager.
     
@@ -199,7 +200,14 @@ class EnsembleFF(nn.Module):
         path: Code repository path
     """
      
-    def __init__(self, device_list,n_models, constructor,constructor_args,restart=False,path='',testing=False):
+    def __init__(self,
+                 device_list: List[torch.device],
+                 n_models: int,
+                 constructor: Any,
+                 constructor_args:List[Any],
+                 restart: bool = False,
+                 path: str = '',
+                 testing: bool = False) -> None:
         self.model_list=[]
         self.dev_models=[[] for dev in device_list]
         if constructor=='SpiceNequIP':
@@ -265,12 +273,12 @@ class EnsembleFF(nn.Module):
                     self.model_list[i]=model
                     i+=1
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Shutdown all training subprocesses gracefully."""
         for proc_number in range(self.nprocs):
             SetTrainProcStatus(proc_number,'Shutdown')
         
-    def predict(self,ase_atoms):
+    def predict(self,ase_atoms: ase.atoms) -> List[torch.Tensor]:
         """
         Generate ensemble predictions with uncertainty quantification.
         
@@ -283,7 +291,7 @@ class EnsembleFF(nn.Module):
         
         return Gaussian_NNP_Ens(self.model_list, ase_atoms)
     
-    def update(self,new_data):
+    def update(self,new_data: List) -> None:
         """
         Add new labeled data and trigger ensemble retraining.
         
@@ -320,7 +328,12 @@ from ..procs.comm.Procs import FileIOReqHandlerVASP
 import ase
 import scipy
 
-def Confidence(e_bound,std,n,E,a,b):
+def Confidence(e_bound: float,
+               std: float,
+               n: int,
+               E: float,
+               a: float,
+               b: float) -> float:
     """
     Calculate model confidence using Student's t-distribution.
     
@@ -382,7 +395,12 @@ class OTFForceField(nn.Module):
     and condition to set this interface as the DFTReqHandler and make sure that in 
     MLFFProc.py the corresponding keyword is passed as an argument.
     """
-    def __init__(self,MLFF,DFTReqHandler,E_thresh=ErrorThreshold,conf_thresh=0.95,restart=False):
+    def __init__(self,
+                 MLFF: NNP,
+                 DFTReqHandler: Any,
+                 E_thresh: float = ErrorThreshold,
+                 conf_thresh: float = 0.95,
+                 restart: bool = False) -> None:
         super(OTFForceField,self).__init__()
         self.MLFF=MLFF
         if DFTReqHandler=='VASPSLURM':
@@ -410,7 +428,9 @@ class OTFForceField(nn.Module):
     
 
 
-    def forward(self,atoms,log=True):
+    def forward(self,
+                atoms: ase.atoms,
+                log: bool = True) -> List:
         """
         Main on-the-fly force field prediction step.
         
@@ -479,7 +499,7 @@ class OTFForceField(nn.Module):
             
             return [atoms]+preds[:-1]
         
-    def recalibrate(self,new_data):
+    def recalibrate(self, new_data: List) -> None:
         """
         Update cumulative energy statistics for confidence calculation.
         
@@ -511,7 +531,7 @@ class OTFForceField(nn.Module):
             self.n+=1
 
 
-    def update(self,new_data):
+    def update(self, new_data: List) -> None:
         """
         Trigger full retraining cycle with new labeled DFT data.
         

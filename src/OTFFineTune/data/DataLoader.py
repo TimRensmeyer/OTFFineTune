@@ -23,6 +23,7 @@ import torch
 import ase
 from mace.tools import torch_geometric
 from mace import data
+from typing import List, Union, Any
 
 class weighted_dataloader():
     """
@@ -44,7 +45,16 @@ class weighted_dataloader():
         pbc: Whether periodic boundary conditions apply
     """
 
-    def __init__(self,device,atomic_numbers,geometries=[],Y_f=[],Y_e=[],Y_s=[],bs=5,r_max=4.0,pbc=True):
+    def __init__(self,
+                 device: torch.device,
+                 atomic_numbers: List[int],
+                 geometries: List = [],
+                 Y_f: List = [],
+                 Y_e: List = [],
+                 Y_s: List = [],
+                 bs: int = 5,
+                 r_max: float = 4.0,
+                 pbc: bool = True) -> None:
         self.geometries=geometries
         self.Y_f=Y_f
         self.Y_e=Y_e
@@ -58,11 +68,11 @@ class weighted_dataloader():
 
 
         
-    def len(self):
+    def len(self) -> int:
         """Return current dataset size."""
         return self.size
     
-    def add(self,sample):
+    def add(self, sample: List) -> None:
         """
         Add new labeled sample and update dataset.
         
@@ -93,7 +103,7 @@ class weighted_dataloader():
 
 
     
-    def sample(self):
+    def sample(self) -> List:
         """
         Sample a mini-batch with optional importance weighting.
         
@@ -175,7 +185,7 @@ class weighted_dataloader():
             return (X,(e_t,f_t,s_t),weights)
                     
 
-    def last_added(self):
+    def last_added(self) -> int:
         """
         Retrieve the most recently added sample.
         

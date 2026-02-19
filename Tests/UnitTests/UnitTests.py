@@ -22,9 +22,9 @@ sys.path.insert(0, src_dir)
 # we need to add the source directory to the python path to import the necessary modules for testing.
 sys.path.insert(0, os.path.join(src_dir,"OTFFineTune/"))
 from OTFFineTune.src.OTFFineTune.procs.comm.Procs import GetGPUProcStatus, SetGPUProcStatus
-from OTFFineTune.Tests.Utils import MockDFTReqHandler, MockDFTReqHandlerNoStress, LoadTestConfig
+from OTFFineTune.Tests.Utils import MockDFTReqHandler, MockDFTReqHandlerNoStress
 
-def test_model_construction_and_forward_pass():
+def test_model_construction_and_forward_pass() -> None:
     """Test the construction of the Network class and a forward pass with dummy input data.
     This test validates that the model can be instantiated and that the forward method produces outputs of the expected shape."""
     if NNP=='MACE':
@@ -58,7 +58,7 @@ def test_model_construction_and_forward_pass():
 
     print("Model construction and forward pass test passed.")
 
-def test_optimizer_step():
+def test_optimizer_step() -> None:
     """Test the optimizer step functionality of the CyclicOptimizer class.
     This test validates that the optimizer can perform a step and that the model parameters are updated accordingly."""
     from OTFFineTune.src.OTFFineTune.core.MCMC import CyclicOptimizer, GaussianMeanField
@@ -81,7 +81,7 @@ def test_optimizer_step():
     optimizer.run(model)  # Perform a short optimization cylce
     print("Optimizer run test completed. Check log likelihoods for improvement.")
 
-def test_process_communication():
+def test_process_communication() -> None:
     """Tests if the Process status files read and write work as expected."""
     from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SetProcStatus, GetProcStatus,  SetUp
     from OTFFineTune.src.OTFFineTune.procs.comm.TrainProc import TrainProcComSetUp, SetTrainRequest, GetTrainStatus, SetTrainProcStatus

@@ -27,16 +27,17 @@ import os
 import time
 import ase
 from ase.io import read,write
+from typing import List, Union, Any
 
 # Utilities for main process-to-subprocess communication
-def ProcComSetUp():
+def ProcComSetUp() -> None:
     """Initialize main process communication infrastructure."""
     os.mkdir('tmp')
     fp=open('./tmp/status.txt', 'w')
     fp.write('ready')
     fp.close()
 
-def SetUp():
+def SetUp() -> None:
     """Initialize complete working directory structure for OTF simulation."""
     dircont=os.listdir('./')
 
@@ -51,49 +52,37 @@ def SetUp():
         fp.close()
 
 
-def SetProcStatus(status):
+def SetProcStatus(status: str) -> None:
     fp=open('./tmp/status.txt', 'w')
     fp.write(status)
     fp.close()
 
-def GetProcStatus():
+def GetProcStatus() -> str:
     fp=open('./tmp/status.txt', 'r')
     status=fp.read()
     fp.close()
     return status
 
-def GPUProcComSetUp():
+def GPUProcComSetUp() -> None:
     os.mkdir('tmp')
     fp=open('./tmp/gpu_status.txt', 'w')
     fp.write('ready')
     fp.close()
 
-def SetGPUProcStatus(status):
+def SetGPUProcStatus(status: str) -> None:
     fp=open('./tmp/gpu_status.txt', 'w')
     fp.write(status)
     fp.close()
 
-def GetGPUProcStatus():
+def GetGPUProcStatus() -> str:
     fp=open('./tmp/gpu_status.txt', 'r')
     status=fp.read()
     fp.close()
     return status
 
 
-def ProcLauncher(SLURMFILE=None,PROCFILE=None,Restart=False):
-    if Restart:
-        SetGPUProcStatus('Restart')
-    else:
-        SetGPUProcStatus('Initiating')
 
-    # If a SLURMFILE was specified, the proc gets launched via SLURM
-    if SLURMFILE!=None:
-        os.popen('sbatch ' + SLURMFILE )
-
-    elif PROCFILE!=None:
-        proc = subprocess.Popen(['python3', PROCFILE])
-
-def FileIOReqHandlerVASP(atoms):
+def FileIOReqHandlerVASP(atoms: ase.Atoms) -> List:
     """
     VASP DFT Request Handler.
     
@@ -141,7 +130,8 @@ def FileIOReqHandlerVASP(atoms):
     except:       
         return atoms,energy,forces
 
-def FileIOReqHandlerOTF(atoms,IncludeStress=False):
+def FileIOReqHandlerOTF(atoms: ase.Atoms,
+                        IncludeStress: bool = False) -> List:
     """
     OTF GPU Process Request Handler.
     
@@ -183,17 +173,8 @@ def FileIOReqHandlerOTF(atoms,IncludeStress=False):
     else:
         return atoms,energy,forces,e_uncert,f_uncert
 
-def VASPSLURMBuilder(SLURMFILE):
-    """
-    Build VASP DFT request handler with SLURM job submission.
-    
-    Note: This function is currently no longer used and may be removed in future versions.
-    Consider using FileIOReqHandlerVASP directly.
-    """
-    os.popen('sbatch '+ SLURMFILE)
-    return FileIOReqHandlerVASP
-
-def OTFSlurmBuilder(SLURMFILE):
+from typing import Callable
+def OTFSlurmBuilder(SLURMFILE: str) -> Callable[[ase.Atoms,bool],List]:
     """
     Build OTF GPU process launcher with SLURM job submission.
 
@@ -203,8 +184,9 @@ def OTFSlurmBuilder(SLURMFILE):
     return FileIOReqHandlerOTF
 
 def SlurmStartup(
-                 OTFBUILDER=OTFSlurmBuilder,
-                 GPUSLURMFILE="MLFFProc_Submit",restart=False):
+                 OTFBUILDER: Callable[[str], Callable] = OTFSlurmBuilder,
+                 GPUSLURMFILE: str = "MLFFProc_Submit",
+                 restart: bool = False) -> Callable:
     """
     Startup OTF workflow with SLURM resource management.
     
@@ -215,7 +197,7 @@ def SlurmStartup(
     The startup workflow has been integrated into MLFFProc.py.
     
     Args:
-        OTFBUILDER: Function to build GPU process launcher
+        OTFBUILDER: Function to build GPU process launcher from a file path
         GPUSLURMFILE: Path to GPU process SLURM submission script
         restart: Whether to restore from checkpoint
         

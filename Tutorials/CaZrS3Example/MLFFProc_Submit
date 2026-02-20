@@ -27,4 +27,4 @@ conda info --envs
 module use --append /path/to/VASP/modulefiles/VASP/
 module load 6.4.1-mpi-ifx-old
 module load VASP 2>&1    #It is important that vasp_std is loaded correctly here.
-python -u /path/to/source/code/OTFFineTune/src/OTFFineTune/procs/MLFFProc.py
+python -u -m OTFFineTune.procs.MLFFProc

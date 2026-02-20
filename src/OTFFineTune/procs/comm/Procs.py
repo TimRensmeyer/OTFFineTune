@@ -222,3 +222,59 @@ def SlurmStartup(
             launched=True
             break
     return OTFReqHandler
+
+
+def test_potential_model(atoms: ase.Atoms) -> List:
+    """using a simple Lennard Jones potential as a test model for end-to-end testing of the MLFFProc workflow.
+    Note that the Hydrogen dimer is used as a test system, so the potential is defined for H-H interactions.
+    """
+    #Lennard-Jones parameters for Hydrogen
+    epsilon = 104  # Depth of the potential well in kcal/mol
+    sigma = 0.661  # Finite distance at which the inter-particle potential is zero in Angstroms
+    energy = 0.0
+    forces = np.zeros((len(atoms), 3))
+    positions = atoms.get_positions()
+    distance_vector = positions[1] - positions[0]
+    r = np.linalg.norm(distance_vector)
+
+    # Calculate Lennard-Jones potential energy
+    energy = 4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)
+    # Calculate forces
+    force_magnitude = 24 * epsilon * (2 * (sigma ** 12) / (r ** 13) - (sigma ** 6) / (r ** 7))
+    forces[0] = -force_magnitude * (distance_vector / r)
+    forces[1] = forces[0]  # Newton's third law
+    return energy, forces # convert to kcal/mol and kcal/mol/Angstrom
+
+
+def MockDFTReqHandler(atoms: ase.Atoms) -> List:
+    import time
+
+    """Mock DFT request handler that returns fixed energy and forces for testing.
+    Follows the interface of the VASP DFT request handler used in the Procs module.
+    Shapes of the returned energy, forces and stresses are consistent with typical DFT outputs
+    for a system of the given atoms."""
+    #Note: are the shapes of the numpy arrays correct?
+    SetProcStatus('DFT Request')
+
+    #Waiting for the Calculation to finish
+    while GetProcStatus() != 'Finished Calculating':
+        time.sleep(1)
+
+    energy, forces = test_potential_model(atoms)
+    [xx, yy, zz, yz, zx, xy] = [0.0001, 0.0001, 0.0001, 0.00001, 0.00001, 0.00001]  # Fixed stress components
+    stresses = np.array([[xx,xy,zx],
+                        [xy,yy,yz],
+                        [zx,yz,zz]])
+    return atoms, energy, forces, stresses
+
+def MockDFTReqHandlerNoStress(atoms: ase.Atoms) -> List:
+    """Mock DFT request handler that returns fixed energy and forces without stress for testing.
+    Follows the interface of the VASP DFT request handler used in the Procs module, but does not return stress."""
+    import time
+    SetProcStatus('DFT Request')
+
+    #Waiting for the Calculation to finish
+    while GetProcStatus() != 'Finished Calculating':
+        time.sleep(1)
+    energy, forces = test_potential_model(atoms)
+    return atoms, energy, forces

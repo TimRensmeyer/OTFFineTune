@@ -77,7 +77,7 @@ if __name__ == "__main__":
         target_dev=torch.device("cuda:{}".format(target_dev))
     pid=int(pid)
     n_models=int(n_models)
-    sys.path.insert(0, path)
+
     file_path=os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(0, file_path)
     from comm.TrainProc import SetTrainProcStatus,GetTrainProcStatus
@@ -85,9 +85,9 @@ if __name__ == "__main__":
     models=[]
     if init_type=='R':
         if builder_func=='SpiceNequIP':
-            from OTFFineTune.src.OTFFineTune.models.SpiceModelLoader import NequIP_Builder
+            from OTFFineTune.models.SpiceModelLoader import NequIP_Builder
         elif builder_func=='MACE':
-            from OTFFineTune.src.OTFFineTune.models.MACE_Loader import MACE_Builder
+            from OTFFineTune.models.MACE_Loader import MACE_Builder
         for i in range(n_models):
             model=torch.load('Checkpoints/model{}{}'.format(pid,i),map_location=torch.device('cpu'),weights_only=False)
             model=model.to(target_dev)

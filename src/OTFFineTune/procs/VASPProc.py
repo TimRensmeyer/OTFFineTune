@@ -32,7 +32,7 @@ import yaml
 import sys
 srcpath=sys.argv[1]
 trgpath=sys.argv[2]
-#sys.path.insert(0, srcpath)
+
 file_path=os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, file_path)
 from comm.Procs import SetProcStatus, GetProcStatus

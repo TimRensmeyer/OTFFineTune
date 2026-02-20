@@ -406,7 +406,12 @@ class OTFForceField(nn.Module):
         if DFTReqHandler=='VASPSLURM':
             self.DFTReqHandler=FileIOReqHandlerVASP
         elif DFTReqHandler=='Mock':
-            from ....Tests.Utils import MockDFTReqHandler
+            file_path=os.path.dirname(os.path.realpath(__file__))
+            #This file is in OTFFineTune/src/OTFFineTune/core/NNP.py, so the mock DFT request handler is
+            #  located in OTFFineTune/Tests/Utils.py, which is three levels up and then into Tests/Utils.py
+
+            
+            from ..procs.comm.Procs import MockDFTReqHandler
             self.DFTReqHandler=MockDFTReqHandler
         else:
             self.DFTReqHandler=DFTReqHandler

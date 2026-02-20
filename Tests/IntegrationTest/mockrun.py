@@ -1,7 +1,6 @@
 import os 
 import subprocess
 from pathlib import Path
-import sys
 import yaml
 import time
 
@@ -15,8 +14,6 @@ runconfigfile=os.path.join(simulation_dir,'runconfig.yaml')
 with open(runconfigfile, 'r') as f:
     runconfig = yaml.safe_load(f)
 
-src_dir=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
-sys.path.insert(0, src_dir)
 if runconfig['NNPBuilder']=='MACE':
     mode='MACE'
 elif runconfig['NNPBuilder']=='SpiceNequIP':
@@ -27,8 +24,8 @@ else:
 for fn in os.listdir():
     if fn[-4:]=='.out':
         os.remove(fn)
-
-from OTFFineTune.src.OTFFineTune.procs.comm.Procs import FileIOReqHandlerOTF, SetUp, GetProcStatus, GetGPUProcStatus
+import OTFFineTune 
+from OTFFineTune.procs.comm.Procs import FileIOReqHandlerOTF, SetUp, GetProcStatus, GetGPUProcStatus
 #instead of calling the OTFSlurmBuilder, we directly instantiate the request handler
 # and launch the MLFFProc.py manually without SLURM for testing purposes. 
 # This allows us to run the test on a single machine without requiring a SLURM cluster.
@@ -37,10 +34,9 @@ if 'tmp' not in os.listdir('./'):
     SetUp()
 
 
-#os.popen('python3 -u ' + os.path.join(src_dir,'OTFFineTune/src/OTFFineTune/procs/MLFFProc.py >logs.txt'))
 log_file = open('logs.txt', 'w')
 mlff_process = subprocess.Popen(
-    ['python3', '-u', os.path.join(src_dir, 'OTFFineTune/src/OTFFineTune/procs/MLFFProc.py')],
+    ['python3', '-u', '-m', 'OTFFineTune.procs.MLFFProc'],
     stdout=log_file,
     stderr=subprocess.STDOUT
 )
@@ -136,21 +132,9 @@ from ase.optimize import BFGS
 dyn = Langevin(supercell, timestep=0.5*time_step,temperature_K=1500, friction=5e-1)
 dyn.run(5)
 
-#dyn=VelocityVerlet(supercell,timestep=time_step)
 
-# Save trajectory
-#traj = Trajectory("proton.traj", "w", supercell)
-#dyn.attach(traj.write, interval=1)  # Save every 100 steps
-
-# Logging
-#dyn.attach(MDLogger(dyn, supercell, "npt.log", header=True, stress=True, peratom=True), interval=100)
-
-
-
-# Run simulation
-#dyn.run(n_steps)
  #shutdown the OTF process after the simulation is done
-from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SetGPUProcStatus
+from OTFFineTune.procs.comm.Procs import SetGPUProcStatus
 
 SetGPUProcStatus('Shutdown')
 time.sleep(6)  # Give the OTF process time to shut down before the script exits

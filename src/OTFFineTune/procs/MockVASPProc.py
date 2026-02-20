@@ -6,9 +6,8 @@ import sys
 
 srcpath=sys.argv[1]
 trgpath=sys.argv[2]
-sys.path.insert(0, srcpath)
 
-from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SetProcStatus, GetProcStatus
+from OTFFineTune.procs.comm.Procs import SetProcStatus, GetProcStatus
 
 
 if __name__ == "__main__":

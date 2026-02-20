@@ -4,7 +4,7 @@ for fn in os.listdir():
     if fn[-4:]=='.out':
         os.remove(fn)
 
-from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SlurmStartup
+from OTFFineTune.procs.comm.Procs import SlurmStartup
 Handler=SlurmStartup(restart=False)
 
 from ase.calculators.calculator import Calculator, all_changes

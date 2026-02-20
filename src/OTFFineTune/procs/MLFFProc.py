@@ -69,11 +69,10 @@ if __name__ == "__main__":
     else:
         TargetPath=os.getcwd()
 
-    sys.path.insert(0, CodePath)
     file_path=os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(0, file_path)
 
-    import OTFFineTune.src.OTFFineTune.core.NNP as NNP
+    import OTFFineTune.core.NNP as NNP
     from comm.Procs import SetGPUProcStatus, GetGPUProcStatus,GPUProcComSetUp,SetProcStatus
     from comm.TrainProc import GetTrainStatus, SetTrainProcStatus
 

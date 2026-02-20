@@ -1,7 +1,4 @@
 import os 
-import sys
-
-sys.path.insert(0, '/beegfs/home/r/rensmeyt/Git/')
 
 for fn in os.listdir():
     if fn[-4:]=='.out':
@@ -9,7 +6,7 @@ for fn in os.listdir():
 
 import yaml
 
-from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SlurmStartup
+from OTFFineTune.procs.comm.Procs import SlurmStartup
 
 Handler=SlurmStartup(restart=False)
 

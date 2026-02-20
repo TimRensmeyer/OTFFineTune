@@ -16,11 +16,9 @@ if __name__ == "__main__":
 
   with open('runconfig.yaml', 'r') as f:
       conf = yaml.safe_load(f)
-  src_dir=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+
   NNP=conf['NNPBuilder']
-  import sys
-  sys.path.insert(0, src_dir)
- # from OTFFineTune.Tests.Utils import MockDFTReqHandler, MockDFTReqHandlerNoStress, LoadTestConfig
+
   UnitTests.test_model_construction_and_forward_pass()
   UnitTests.test_optimizer_step()
   UnitTests.test_process_communication()

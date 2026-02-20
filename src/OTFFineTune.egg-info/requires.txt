@@ -1,0 +1,11 @@
+ase>=3.23.0
+numpy>=1.26.4
+pyyaml>=6.0
+scipy>=1.13.0
+
+[MACE]
+mace-torch==0.3.10
+
+[NequIP]
+nequip==0.6.1
+e3nn==0.5.1

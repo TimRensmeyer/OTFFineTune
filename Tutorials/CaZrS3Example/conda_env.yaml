@@ -191,4 +191,4 @@ dependencies:
     - tqdm==4.67.1
     - triton==3.2.0
     - tzdata==2025.1
-prefix: /beegfs/home/r/rensmeyt/.conda/envs/MACE
+

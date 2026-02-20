@@ -15,8 +15,10 @@ Key Features:
 - Trainable uncertainty estimates via neural network heads
 - Gaussian negative log-likelihood loss for Bayesian sampling
 """
-import shutup
-shutup.please()
+import warnings
+warnings.filterwarnings('ignore', message='.*TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD.*')
+warnings.filterwarnings('ignore', message='.*TorchScript type system.*')
+warnings.filterwarnings('ignore', message='.*Upstream issues in PyTorch versions 1.13.* and 2.* have.*')
 import os
 import nequip
 from nequip.utils.config import Config
@@ -48,9 +50,7 @@ model_dict_path=os.path.join(file_path,'constructor_data/SpiceDict')
 conf=Config()
 conf=conf.from_file(config_path)
 
-model=model_from_config(conf,initialize=True).model
 
-base=nn.Sequential(*[model.func[i] for i in range(len(model.func)-4)])
 
 class Network(nn.Module):
     """
@@ -72,7 +72,8 @@ class Network(nn.Module):
         self.lin=nn.Sequential(nn.Linear(64,32),nn.Linear(32,1))
         self.linf=nn.Sequential(nn.Linear(64,32),nn.SiLU(),nn.Linear(32,16),nn.SiLU(),nn.Linear(16,1))
         self.line=nn.Sequential(nn.Linear(64,32),nn.SiLU(),nn.Linear(32,16),nn.SiLU(),nn.Linear(16,1))
-        self.func=copy.deepcopy(base)
+        model=model_from_config(conf,initialize=True).model
+        self.func=nn.Sequential(*[model.func[i] for i in range(len(model.func)-4)])
 
 
         
@@ -249,7 +250,7 @@ def NequIP_Loader() -> StochasticModel:
     m=model(module, scale=23.06)
     m.load_state_dict(state_dict=dict)    
 
-    return copy.deepcopy(m)
+    return m#copy.deepcopy(m)
 
 from ..core.NNP import NNP
 from ..data.NequIPDataLoader import weighted_dataloader

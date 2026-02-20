@@ -13,7 +13,7 @@ module purge
 module load anaconda3/2021.11
 module load cuda
 eval "$(conda shell.bash hook)"
-conda activate NequIP_ENV
+conda activate NequIP_ENV        #If you name the environment something else, change this line accordingly.
 conda info --envs
 
 # ============================================================================
@@ -27,4 +27,4 @@ conda info --envs
 module use --append /path/to/VASP/modulefiles/VASP/
 module load 6.4.1-mpi-ifx-old
 module load VASP 2>&1
-python -u /path/to/source/code/OTFFineTune/MLFFProc.py
+python -u /path/to/source/code/OTFFineTune/src/OTFFineTune/procs/MLFFProc.py

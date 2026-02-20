@@ -3,15 +3,13 @@ import sys
 
 sys.path.insert(0, '/beegfs/home/r/rensmeyt/Git/')
 
-print('test1')
 for fn in os.listdir():
     if fn[-4:]=='.out':
         os.remove(fn)
-print('test2')
 
 import yaml
 
-from OTFFineTune.Procs import SlurmStartup
+from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SlurmStartup
 
 Handler=SlurmStartup(restart=False)
 

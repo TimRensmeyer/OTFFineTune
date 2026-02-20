@@ -1,10 +1,10 @@
 import os 
-print('test1')
+
 for fn in os.listdir():
     if fn[-4:]=='.out':
         os.remove(fn)
-print('test2')
-from Procs import SlurmStartup
+
+from OTFFineTune.src.OTFFineTune.procs.comm.Procs import SlurmStartup
 Handler=SlurmStartup(restart=False)
 
 from ase.calculators.calculator import Calculator, all_changes

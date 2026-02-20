@@ -1,13 +1,5 @@
-#CodePath: '/beegfs/home/r/rensmeyt/Git/'       #Path to the directory that contains the OTFFineTune folder
-#TargetPath: '/beegfs/home/r/rensmeyt/Git/OTFFineTune/Tests/UnitTests/'    #Path to the folder, this file is located in.
-DFTResourceManager: SLURM
-NNPResourceManager: SLURM
-FFType: Ensemble
-n_models: 3
-dev_list: [0,1,2] 
+n_models: 3           # number of monte carlo samples. In this test, this is set to 3 to speed up the test, but in practice, more samples might need to be used.
+dev_list: [0,1,2]     # In this test, this will simply be ignored and the models will run on the cpu regardless.
 NNPBuilder: SpiceNequIP      # Either MACE or SpiceNequIP depending on model used
-constructor_args: [0.5]
-DFTCode: vasp_std
-DFTProcSubmitFile: VASPProc_Submit
-NNPProcSubmitFile: NNPProc_Submit
+constructor_args: [0.5]   # Strenght of the BNN prior. This is the only constructor argument for the models currently implemented, but more may be added in the future.
 ErrorThreshold: 0.0005 #Very low error threshold for testing purposes

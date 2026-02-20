@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: OTFFineTune
+Version: 0.1.0
+Summary: On-the-fly fine-tuning of foundational neural network potentials
+License-File: LICENSE
+Requires-Dist: ase>=3.23.0
+Requires-Dist: numpy>=1.26.4
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: scipy>=1.13.0
+Provides-Extra: mace
+Requires-Dist: mace-torch==0.3.10; extra == "mace"
+Provides-Extra: nequip
+Requires-Dist: nequip==0.6.1; extra == "nequip"
+Requires-Dist: e3nn==0.5.1; extra == "nequip"
+Dynamic: license-file

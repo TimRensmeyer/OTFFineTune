@@ -13,7 +13,8 @@ module purge
 module load anaconda3/2021.11
 module load cuda
 eval "$(conda shell.bash hook)"
-conda activate MACE_ENV
+conda activate MACE_ENV                # If you name the environment something else, change this line accordingly.
+                                       # You can install the environment in any other environment manager as well, just make sure to change the activation command accordingly.
 conda info --envs
 # ============================================================================
 # TODO: Configure VASP module loading for your HPC system
@@ -25,5 +26,5 @@ conda info --envs
 # ============================================================================
 module use --append /path/to/VASP/modulefiles/VASP/
 module load 6.4.1-mpi-ifx-old
-module load VASP 2>&1
-python -u /path/to/source/code/OTFFineTune/MLFFProc.py
+module load VASP 2>&1    #It is important that vasp_std is loaded correctly here.
+python -u /path/to/source/code/OTFFineTune/src/OTFFineTune/procs/MLFFProc.py

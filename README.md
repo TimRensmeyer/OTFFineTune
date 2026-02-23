@@ -29,6 +29,7 @@ However, for some side project application several features have been developed 
 - using force uncertainties as an additional intervention criterion exist as features
 - native ONETEP support
 - native support of any electronic structure method that is set up as an ase calculator
+- running VASP and the ML models as a SLURM HetJob on different nodes respectively.
 
 Some optimization and testing still needs to be done for those features. However, after archiving this version of the repository on Zenodo for reproducibility and publishing of the paper, these features will be merged in the near future.
 

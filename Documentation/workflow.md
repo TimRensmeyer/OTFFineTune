@@ -12,7 +12,7 @@
                              │ ase.Atoms object
                              v
                   ┌──────────────────────┐
-                  │  FileIOReqHandler    │
+                  │  FileIOReqHandlerOTF │
                   │  (write atoms.xyz)   │
                   └──────────────────────┘
                              │
@@ -45,10 +45,10 @@
          │ Predictions │       │ Calculation      │
          └──────┬──────┘       └────────┬─────────┘
                 │                       │
-                │              ┌────────v────────┐
-                │              │  FileIOReqHandler
-                │              │  (write POSCAR) │
-                │              └────────┬────────┘
+                │              ┌────────v──────────────┐
+                │              │  FileIOReqHandlerVASP │
+                │              │  (write POSCAR)       │
+                │              └────────┬──────────────┘
                 │                       │
                 │              ┌────────v─────────────┐
                 │              │  VASPProc.py         │
@@ -57,7 +57,7 @@
                 │              └────────┬─────────────┘
                 │                       │
                 │              ┌────────v─────────────┐
-                │              │  FileIOReqHandler    │
+                │              │  FileIOReqHandlerVASP│
                 │              │  (read OUTCAR)       │
                 │              └────────┬─────────────┘
                 │                       │
@@ -78,7 +78,7 @@
                 └───────────────┬───────┘
                                 │
                     ┌───────────v────────────┐
-                    │ FileIOReqHandler       │
+                    │ FileIOReqHandlerOTF    │
                     │ (return .npy files)    │
                     └───────────┬────────────┘
                                 │

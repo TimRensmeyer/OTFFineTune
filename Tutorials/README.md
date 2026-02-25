@@ -13,6 +13,12 @@ If this is done, the simulations can simply be run with
 
 python -u run.py
 
+Note that it is expected that this command is run from within the individual Tutorial Example directories themself or with those directories set as the working directory. E.g. running 
+
+python -u CaZrS3Example/run.py 
+
+from this directory will not work correctly.
+
 Additionally, there is a runconfig.yaml for setting up the machine learning specific aspects of the run.
 Nothing in those files needs to be changed for these tutorials to run but you can play around with some
 settings if you want.

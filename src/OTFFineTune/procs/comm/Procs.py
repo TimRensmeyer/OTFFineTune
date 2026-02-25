@@ -163,6 +163,12 @@ def FileIOReqHandlerOTF(atoms: ase.Atoms,
     atoms=read('tmp/atoms.xyz')
     forces=np.load('tmp/forces.npy')
     energy=np.load('tmp/energy.npy')
+    #some versions of ase seem to have problems with npy to scalar conversion,
+    #  so we need to check the shape of the energy array and convert it to a scalar if needed
+    if energy.shape==(1,1):
+        energy=energy[0][0]
+    elif energy.shape==(1,):
+        energy=energy[0] 
     e_uncert=np.load('tmp/e_uncert.npy')
     f_uncert=np.load('tmp/f_uncert.npy')
 

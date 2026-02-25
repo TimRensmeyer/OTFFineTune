@@ -97,13 +97,13 @@ if __name__ == "__main__":
 
     
         if builder_func=='SpiceNequIP':
-            from OTFFineTune.src.OTFFineTune.models.SpiceModelLoader import NequIP_Builder
+            from OTFFineTune.models.SpiceModelLoader import NequIP_Builder
             for i in range(n_models):
                 model=NequIP_Builder(builder_args).to(target_dev)
                 model.change_device(target_dev)
                 models.append(model)
         elif builder_func=='MACE':
-            from OTFFineTune.src.OTFFineTune.models.MACE_Loader import MACE_Builder
+            from OTFFineTune.models.MACE_Loader import MACE_Builder
             for i in range(n_models):
                 model=MACE_Builder(builder_args).to(target_dev)
                 model.change_device(target_dev)

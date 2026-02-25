@@ -179,7 +179,7 @@ class smodel(StochasticModel):
         exponent_e=-0.5*(energy-dft_energy)**2/energy_uncert**2
         exponent_f=-0.5*(forces-dft_force)**2/force_uncert**2
         exponent_s=-0.5*(stress-dft_stress)**2/stress_uncert**2
-        print("Force:",forces,dft_force)
+       # print("Force:",forces,dft_force)
         print(torch.mean(torch.abs((energy-dft_energy))).detach().cpu().item(),
               torch.mean(torch.abs((forces-dft_force))).detach().cpu().item(),
               torch.mean(torch.abs((stress-dft_stress))).detach().cpu().item(),

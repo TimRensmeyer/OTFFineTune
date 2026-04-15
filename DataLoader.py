@@ -38,8 +38,8 @@ class weighted_dataloader():
 
         self.size+=1
 
-        configs=data.utils.config_from_atoms_list([ase_atoms])
-        geometry=data.AtomicData.from_config(configs[0], z_table=self.z_table, cutoff=self.r_max)
+        config=data.utils.config_from_atoms(ase_atoms)
+        geometry=data.AtomicData.from_config(config, z_table=self.z_table, cutoff=self.r_max)
         self.geometries.append(geometry)
         self.Y_f.append(y_f)
         self.Y_e.append(y_e)
@@ -61,9 +61,11 @@ class weighted_dataloader():
 
             f_t=torch.stack([self.Y_f[i].to(device) for i in b_ind])
             e_t=torch.stack([self.Y_e[i].to(device) for i in b_ind])
-            s_t=torch.stack([self.Y_s[i].to(device) for i in b_ind])
-
-            return (X,(e_t,f_t,s_t))
+            try:
+                s_t=torch.stack([self.Y_s[i].to(device) for i in b_ind])
+                return (X,(e_t,f_t,s_t))
+            except:
+                return (X,(e_t,f_t))
 
 
             return (self.geometries,(self.Y_e,self.Y_f,self.Y_s))
@@ -115,9 +117,13 @@ class weighted_dataloader():
 
             f_t=torch.stack([self.Y_f[i].to(device) for i in b_ind])
             e_t=torch.stack([self.Y_e[i].to(device) for i in b_ind])
-            s_t=torch.stack([self.Y_s[i].to(device) for i in b_ind])
+            try:
+                s_t=torch.stack([self.Y_s[i].to(device) for i in b_ind])
+                return (X,(e_t,f_t,s_t),weights)
+            except:
+                return (X,(e_t,f_t),weights)
 
-            return (X,(e_t,f_t,s_t),weights)
+            
                     
 
     def last_added(self):

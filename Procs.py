@@ -71,23 +71,73 @@ def ProcLauncher(SLURMFILE=None,PROCFILE=None,Restart=False):
     elif PROCFILE!=None:
         proc = subprocess.Popen(['python3', PROCFILE])
 
-def FileIOReqHandlerVASP(atoms):
+def FileIOReqHandler(atoms):
 
-    # Generating VASP geometry 
+    n_current_step = len(os.listdir('Coords'))
+
+    # # Pure MACE results for training - debug option
+    # import yaml
+    # with open('runconfig.yaml', 'r') as file:
+    #     config = yaml.safe_load(file)
+    # if 'DFTReferenceSource' in config.keys() and config['DFTReferenceSource'] == 'MACE':
+    #     if len(os.listdir('SimFiles')) == 0:
+    #         print('running MACE')
+    #         from mace.calculators import mace_mp
+    #         calc = mace_mp(model="medium",dispersion=False,default_dtype="float32",device='cpu',return_raw_model=False)
+    #         atoms.calc = calc
+    #         energy=atoms.get_potential_energy()*23.0609
+    #         forces=atoms.get_forces()*23.0609
+    #         [xx,yy,zz,yz,zx,xy]=list(atoms.get_stress())
+    #         stress=np.array([[xx,xy,zx],
+    #                         [xy,yy,yz],
+    #                         [zx,yz,zz]])*23.0609
+    #     else:
+    #         print('running MLFF')
+    #         atoms,energy,forces,stress,e_uncert,f_uncert,s_uncert = FileIOReqHandlerOTF(atoms,IncludeStress=True)
+    #     write('SimFiles/MLFF{}.xyz'.format(n_current_step),atoms,'extxyz')
+    #     return atoms,energy,forces,stress
+
     write('POSCAR',atoms,'vasp')
     
-    # Forwarding Request to VASPProc
+    # Forwarding Request to DFTProc
     SetProcStatus('DFT Request')
 
     #Waiting for the Calculation to finish
     while GetProcStatus() != 'Finished Calculating':
         time.sleep(1)
-    text=os.popen('cp OUTCAR SimFiles/OUTCAR{}'.format(len(os.listdir('Coords')))).read()
-    print(text)
+
     # extracting data from outcar
-    atoms_out=read("OUTCAR", index=':')[0]
-    energy=atoms_out.get_potential_energy()*23.0609
-    forces=atoms_out.get_forces()*23.0609
+    DFT_succeeded = True
+
+    out_format = ''
+    if os.path.isfile('OUTCAR'):
+        out_file = 'OUTCAR'
+        out_format = 'vasp-out'
+    elif os.path.isfile('onetep.out'):
+        out_file = 'onetep.out'
+        out_format = 'onetep-out'
+    elif os.path.isfile('espresso.pwo'):
+        out_file = 'espresso.pwo'
+        out_format = 'espresso-out'
+    else:
+        DFT_succeeded = False
+    
+
+    try:
+        atoms_out=read(out_file, index=-1, format=out_format)
+        energy=atoms_out.get_potential_energy()*23.0609
+        forces=atoms_out.get_forces()*23.0609
+        text=os.popen('cp {} SimFiles/{}{}'.format(out_file,out_file,n_current_step)).read()
+    except: 
+        DFT_succeeded = False
+    os.remove(out_file)
+
+    if not DFT_succeeded:
+        print('DFT calculation failed at step {}. Working with MLFF prediction instead.'.format(n_current_step))
+        return 'DFT FAILED'
+    else:
+        print(text)
+
     try:
         [xx,yy,zz,yz,zx,xy]=list(atoms_out.get_stress())
         stress=np.array([[xx,xy,zx],
@@ -103,7 +153,7 @@ def FileIOReqHandlerOTF(atoms,IncludeStress=False):
     print('write finished')
     print(f"[DEBUG] MLFFProc PID: {os.getpid()}, Host: {os.uname()[1]}")
     #time.sleep(1)
-    # Forwarding Request to VASPProc
+    # Forwarding Request to DFTProc
     SetGPUProcStatus('OTF Request')
 
     #Waiting for the Calculation to finish
@@ -140,11 +190,15 @@ class OTFReqHandler():
 
 def OTFSlurmBuilder(SLURMFILE):
 
-   # proc = os.popen('sbatch '+ SLURMFILE) #testchange
-    out=os.popen('sbatch '+ SLURMFILE).read()
-    out=out.split(' ')[-1]
-    out=out[:-1]
-    print("Job Id:",out)
+    if SLURMFILE == 'proc':
+        OTF_dir = os.path.dirname(os.path.realpath(__file__))
+        out = subprocess.Popen(['python3', '-u', OTF_dir+'/MLFFProc.py'])
+        out = 0
+    else:
+        out=os.popen('sbatch '+ SLURMFILE).read()
+        out=out.split(' ')[-1]
+        out=out[:-1]
+        print("Job Id:",out)
     req_handler=OTFReqHandler(out)
 
     return req_handler
@@ -157,6 +211,7 @@ def SlurmStartup(
     SetUp()
         
     if restart:
+        print('Doing restart')
         SetGPUProcStatus("Restart")
 
     OTFReqHandler=OTFBUILDER(GPUSLURMFILE)

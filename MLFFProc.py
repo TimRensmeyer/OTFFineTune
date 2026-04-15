@@ -1,3 +1,7 @@
+'''
+Main program for running and coordinating anything related to DFT and MLFF
+'''
+
 
 import time
 import subprocess
@@ -5,7 +9,6 @@ import os
 import ase
 import yaml
 import numpy as np
-#import shutup
 import sys
 
 
@@ -24,15 +27,15 @@ if __name__ == "__main__":
     import OTFFineTune.NNP as NNP
 
     Restart=(GetGPUProcStatus()=="Restart")
-    # If the resources are allocated via a SLURM hetjob, the VASP calculations need to 
+    # If the resources are allocated via a SLURM hetjob, the DFT calculations (default: VASP) need to 
     # be launched in the slurm script directly. Otherwise the are launched automtically
-    # from VaspProc.py
+    # from DFTProc.py
     if 'HetJob' not in config.keys():
-        command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
+        command="python3 "+CodePath+"OTFFineTune/DFTProc.py"+ " " +CodePath +" "+TargetPath
         os.popen(command)
 
     elif not config['HetJob']:
-        command="python3 "+CodePath+"OTFFineTune/VASPProc.py"+ " " +CodePath +" "+TargetPath
+        command="python3 "+CodePath+"OTFFineTune/DFTProc.py"+ " " +CodePath +" "+TargetPath
         os.popen(command)
     
 
@@ -45,7 +48,12 @@ if __name__ == "__main__":
                         n_models=config['n_models'], 
                         constructor=config['NNPBuilder'],
                         constructor_args=config['constructor_args'],restart=Restart,path=CodePath)
-    
+   
+    # if 'DFTReferenceSource' in config.keys():
+    #     DFTReqHandler = config['DFTReferenceSource']
+    # else:
+    #     DFTReqHandler = 'VASPSLURM'
+ 
     OTFForceField=NNP.OTFForceField(MLFF=MLFF,
                                     DFTReqHandler='VASPSLURM',
                                     restart=Restart)
@@ -56,8 +64,9 @@ if __name__ == "__main__":
             ready=True
             break
         time.sleep(0.1)
-    
+
     SetGPUProcStatus("OTF Force Field Ready")
+        
     while not done:
         status=GetGPUProcStatus()
         if status =='OTF Request':
@@ -92,4 +101,4 @@ if __name__ == "__main__":
             done=True
             break
         else:
-            time.sleep(0.01)
+            time.sleep(0.1)

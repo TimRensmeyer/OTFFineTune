@@ -4,7 +4,7 @@ from mace.calculators import mace_mp, mace_off
 from mace.tools import torch_geometric
 from mace import data
 import yaml
-import time
+import os
 
 with open('runconfig.yaml', 'r') as file:
     config = yaml.safe_load(file)
@@ -23,9 +23,18 @@ def init_weights_zeros(m):
             nn.init.zeros_(m.bias)
 
 class Network(nn.Module):
+
+    # load in the model, either default medium MACE-MPA-0 or user-defined from config file
     def __init__(self):
         super(Network,self).__init__()
-        model = mace_mp(model="medium", dispersion=False, default_dtype="float32", device='cpu',return_raw_model=True)
+        if 'ModelPath' in config:
+            print('Loading provided model {}'.format(os.path.basename(config['ModelPath'])))
+            if 'ModelHead' in config:
+                model = mace_mp(model=config['ModelPath'], default_dtype="float32", device='cpu', return_raw_model=True, head=config['ModelHead'])
+            else:
+                model = mace_mp(model=config['ModelPath'], default_dtype="float32", device='cpu', return_raw_model=True)
+        else:
+            model = mace_mp(model="medium", dispersion=False, default_dtype="float32", device='cpu',return_raw_model=True)
         model.float()
         self.model=model
 
@@ -40,7 +49,9 @@ class Network(nn.Module):
        # time0=time.time()
         #In a normal forward call the Input will be a list of ASE Atoms objects
         if isinstance(atoms_list, list):
-            configs=data.utils.config_from_atoms_list(atoms_list)
+            configs = []
+            for atoms in atoms_list:
+                configs.append(data.utils.config_from_atoms(atoms))
             batch=[data.AtomicData.from_config(cfg, z_table=self.z_table, cutoff=self.model.r_max.item())
                 for cfg in configs]
             dl=torch_geometric.dataloader.DataLoader(
@@ -100,8 +111,13 @@ class smodel(nn.Module):
         dev=next(iter(self.net.parameters())).device
         atoms_list=data[0]
         
-        
-        (dft_energy,dft_force,dft_stress)=data[1]
+        if len(data[1]) == 3:
+            (dft_energy,dft_force,dft_stress)=data[1]
+            IncludeStress = True
+        else:
+            (dft_energy,dft_force)=data[1]
+            IncludeStress = False
+
         batch_size=dft_energy.shape[0]
         energy,forces,stress,(energy_uncert,force_uncert,stress_uncert)=self.predict(atoms_list,training=True)
 
@@ -119,13 +135,15 @@ class smodel(nn.Module):
             force_weights=[fw.reshape(-1,3) for fw in force_weights]
             force_weights=torch.cat(force_weights).to(dev)  
 
-            stress_weights=[]
-            for s,w in zip(dft_stress,weights):
-                stress_weights.append(torch.zeros(size=(3,3)).to(dev)+w)
-            stress_weights=torch.stack(stress_weights).to(dev) 
+            if IncludeStress:
+                stress_weights=[]
+                for s,w in zip(dft_stress,weights):
+                    stress_weights.append(torch.zeros(size=(3,3)).to(dev)+w)
+                stress_weights=torch.stack(stress_weights).to(dev) 
 
         dft_force=torch.cat([f for f in dft_force])
-        dft_stress=torch.stack([s for s in dft_stress])
+        if IncludeStress:
+            dft_stress=torch.stack([s for s in dft_stress])
         if batch_size>1:
             dft_energy=torch.cat([e for e in dft_energy])
         else:
@@ -133,30 +151,41 @@ class smodel(nn.Module):
         
         exponent_e=-0.5*(energy-dft_energy)**2/energy_uncert**2
         exponent_f=-0.5*(forces-dft_force)**2/force_uncert**2
-        exponent_s=-0.5*(stress-dft_stress)**2/stress_uncert**2
-        print(torch.mean(torch.abs((energy-dft_energy))).detach().cpu().item(),
+        if IncludeStress:
+            exponent_s=-0.5*(stress-dft_stress)**2/stress_uncert**2
+            print(torch.mean(torch.abs((energy-dft_energy))).detach().cpu().item(),
               torch.mean(torch.abs((forces-dft_force))).detach().cpu().item(),
               torch.mean(torch.abs((stress-dft_stress))).detach().cpu().item(),
               torch.max(torch.abs((force_uncert))).detach().cpu().item())
+        else:
+            print(torch.mean(torch.abs((energy-dft_energy))).detach().cpu().item(),
+              torch.mean(torch.abs((forces-dft_force))).detach().cpu().item(),
+              torch.max(torch.abs((force_uncert))).detach().cpu().item())
+        
 
         ll_e=exponent_e-0.5*torch.log(2*3.1415926*energy_uncert**2)
         ll_f=exponent_f-0.5*torch.log(2*3.1415926*force_uncert**2)
-        ll_s=exponent_s-0.5*torch.log(2*3.1415926*stress_uncert**2)
+        if IncludeStress:
+            ll_s=exponent_s-0.5*torch.log(2*3.1415926*stress_uncert**2)
         
         if not weighted or burnin:
 
             ll_e=torch.sum(ll_e)/batch_size
             ll_f=torch.sum(ll_f)/batch_size
-            ll_s=torch.sum(ll_s)/batch_size
+            if IncludeStress:
+                ll_s=torch.sum(ll_s)/batch_size
 
 
         else:
             ll_e=torch.sum(ll_e*weights)/batch_size
             ll_f=torch.sum(ll_f*force_weights)/batch_size
-            ll_s=torch.sum(ll_s*stress_weights)/batch_size     
+            if IncludeStress:
+                ll_s=torch.sum(ll_s*stress_weights)/batch_size     
                    
-
-        return ll_e+ll_f+ll_s
+        if IncludeStress:
+            return ll_e+ll_f+ll_s
+        else:
+            return ll_e+ll_f
 
 
 
